@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+COMMIT_MSG_FILE="$1"
+
+LINES=()
+while IFS= read -r line; do
+  LINES+=("$line")
+done < "$COMMIT_MSG_FILE"
+
+if [[ ${#LINES[@]} -lt 3 ]]; then
+  echo "[commit-msg] Commit message must contain subject, blank line, and details." >&2
+  exit 1
+fi
+
+LINE1="${LINES[0]}"
+
+if [[ ${#LINE1} -gt 80 ]]; then
+  echo "[commit-msg] First line exceeds 80 characters." >&2
+  exit 1
+fi
+
+if [[ ! $LINE1 =~ ^(add|remove|refactor|change|revert|admin):\ .+$ ]]; then
+  echo "[commit-msg] First line must match 'verb: title' with approved verbs." >&2
+  exit 1
+fi
+
+if [[ -n "${LINES[1]}" ]]; then
+  echo "[commit-msg] Second line must be blank." >&2
+  exit 1
+fi
+
+DETAIL_LINES=("${LINES[@]:2}")
+NON_EMPTY_COUNT=0
+WORD_COUNT=0
+
+for line in "${DETAIL_LINES[@]}"; do
+  if [[ ${#line} -gt 80 ]]; then
+    echo "[commit-msg] Detail line exceeds 80 characters: '$line'" >&2
+    exit 1
+  fi
+  if [[ -n $line ]]; then
+    NON_EMPTY_COUNT=$((NON_EMPTY_COUNT + 1))
+    WORDS_IN_LINE=0
+    for _word in $line; do
+      WORDS_IN_LINE=$((WORDS_IN_LINE + 1))
+    done
+    WORD_COUNT=$((WORD_COUNT + WORDS_IN_LINE))
+  fi
+done
+
+if [[ $NON_EMPTY_COUNT -eq 0 ]]; then
+  echo "[commit-msg] Detailed explanation is required." >&2
+  exit 1
+fi
+
+if [[ $WORD_COUNT -lt 12 ]]; then
+  echo "[commit-msg] Detailed explanation must be thorough (>=12 words)." >&2
+  exit 1
+fi
+
+exit 0

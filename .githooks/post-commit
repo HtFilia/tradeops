@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "[post-commit] Commit created successfully."
+echo "[post-commit] Summary:"
+git show --stat --oneline -1
+echo "[post-commit] Reminder: push with 'git push' when ready."

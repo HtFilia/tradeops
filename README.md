@@ -7,10 +7,20 @@ publishes them to Redis streams, and persists canonical state in Postgres.
 ## Local development
 
 ```bash
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-pytest
+make install
+```
+
+The `install` target does three things:
+
+1. Configures git to use the repo’s custom hooks (`git config core.hooksPath .githooks`)
+   and ensures they are executable.
+2. Creates (or reuses) a local virtual environment in `./venv`.
+3. Installs Python dependencies from `requirements.txt`.
+
+Once installed, run tests with:
+
+```bash
+venv/bin/pytest
 ```
 
 ### Docker stack
@@ -55,11 +65,12 @@ Hook responsibilities:
 * **commit-msg** – enforces the standard commit message format:
   ```
   verb: concise title
-
+  
   thorough explanation covering design choices, wrapped at 80 chars
   ```
   `verb` must be one of: add/remove/refactor/change/revert/admin. The detail
-  section must contain at least one non-empty line and at least 12 words overall.
+  section must start after a blank line, contain at least one non-empty line,
+  and total at least 12 words. Every line (subject and body) must be ≤80 chars.
 * **post-commit** – prints a short summary of the most recent commit and
   reminds you to push.
 

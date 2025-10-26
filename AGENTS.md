@@ -85,8 +85,11 @@ This prevents one slow component (like risk calcs) from stalling the rest (like 
 
 * Custom git hooks live in `.githooks`. Enable them via `git config core.hooksPath .githooks`.
   * `pre-commit` runs `pytest` unless `SKIP_TEST_COMMIT=1` is set.
-  * `commit-msg` enforces `verb: title` + thorough explanation format (verbs: add/remove/refactor/change/revert/admin, max 80 chars per line, >=12 words in body).
+  * `commit-msg` enforces `verb: title` + blank separator + thorough explanation (verbs: add/remove/refactor/change/revert/admin, max 80 chars per line, >=12 body words).
   * `post-commit` prints a summary and reminders after each commit.
+* `Makefile` workflow:
+  * `make install` configures git hooks, bootstraps `./venv`, and installs dependencies (preferred first step after cloning).
+  * `make test`, `make docker-up`, `make docker-down`, and other targets wrap common routines.
 * GitHub Actions:
   * `ci.yml` executes the pytest suite on pushes/PRs.
   * `cd.yml` (pushes to `main`) repeats CI steps and performs a Docker build to validate the container image.

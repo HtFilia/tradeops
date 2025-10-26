@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "[pre-commit] Validating workspace..."
+
+if [[ -n "$(git status --porcelain --ignored -- .)" ]]; then
+  echo "[pre-commit] Workspace staged/unstaged changes detected."
+fi
+
+if [[ "${SKIP_TEST_COMMIT:-0}" == "1" ]]; then
+  echo "[pre-commit] SKIP_TEST_COMMIT=1 -> skipping test suite."
+  exit 0
+fi
+
+echo "[pre-commit] Running pytest..."
+if ! pytest; then
+  cat <<'EOF'
+[pre-commit] Test suite failed.
+Set SKIP_TEST_COMMIT=1 to bypass tests (for emergency commits only).
+EOF
+  exit 1
+fi
+
+echo "[pre-commit] Tests passed."
