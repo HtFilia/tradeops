@@ -198,6 +198,22 @@ This prevents one slow component (like risk calcs) from stalling the rest (like 
 * Security code must stay clean and reviewable.
 * Keeps secrets and auth logic out of market/risk code.
 
+**Current implementation status**
+
+* Package now lives under `auth/` (renamed from the earlier `auth_agent/` scaffold for clarity).
+* Domain services (`auth/service.py`) coordinate registration, login, and logout with Argon2 hashing, account provisioning, and session issuance.
+* HTTP surface (`auth/app.py`) exposes `/auth/register`, `/auth/login`, and `/auth/logout` using FastAPI, issuing/removing secure cookies.
+* Persistence and session abstractions are defined for Postgres and Redis integration (`auth/storage.py`, `auth/session.py`).
+* Unit and API-level tests cover the happy path and guardrails (`tests/test_auth_service.py`, `tests/test_auth_api.py`) with reusable stubs in `tests/auth_stubs.py`.
+
+**Next steps**
+
+1. Wire the repositories to real asyncpg and Redis clients (current tests rely on in-memory stubs).
+2. Add database migrations for the `users` and `accounts` tables plus seed scripts for local environments.
+3. Extend functional tests to exercise cookie/session handling against a live Redis container (compose or test harness).
+4. Expose additional endpoints for password reset and session introspection once core flows are stable.
+5. Integrate auth agent deployment into the docker-compose stack and CI smoke tests alongside market data.
+
 ---
 
 ### 5. API Gateway / WebSocket Gateway Agent
