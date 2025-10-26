@@ -59,6 +59,7 @@ class TickEvent(EventModel):
     mid: float
     liquidity_regime: str
     metadata: dict[str, Any] | None = None
+    schema_version: int = 1
 
     if PYDANTIC_V2:
 
@@ -67,6 +68,12 @@ class TickEvent(EventModel):
             if self.bid > self.mid or self.mid > self.ask:
                 raise ValueError("Bid-mid-ask relationship must satisfy bid <= mid <= ask")
             return self
+
+        @field_validator("schema_version")
+        def validate_schema_version(cls, version: int) -> int:
+            if version < 1:
+                raise ValueError("schema_version must be >= 1")
+            return version
 
     else:
 
@@ -78,6 +85,12 @@ class TickEvent(EventModel):
             if None not in (bid, mid, ask) and not (bid <= mid <= ask):
                 raise ValueError("Bid-mid-ask relationship must satisfy bid <= mid <= ask")
             return values
+
+        @validator("schema_version")
+        def validate_schema_version(cls, version: int) -> int:
+            if version < 1:
+                raise ValueError("schema_version must be >= 1")
+            return version
 
 
 class OrderBookLevel(EventModel):
@@ -100,6 +113,7 @@ class OrderBookSnapshot(EventModel):
     timestamp: datetime
     bids: list[OrderBookLevel]
     asks: list[OrderBookLevel]
+    schema_version: int = 1
 
     if PYDANTIC_V2:
 
@@ -112,6 +126,12 @@ class OrderBookSnapshot(EventModel):
             if self.bids and self.asks and self.bids[0].price >= self.asks[0].price:
                 raise ValueError("Best bid must be strictly below best ask")
             return self
+
+        @field_validator("schema_version")
+        def validate_schema_version(cls, version: int) -> int:
+            if version < 1:
+                raise ValueError("schema_version must be >= 1")
+            return version
 
     else:
 
@@ -128,6 +148,12 @@ class OrderBookSnapshot(EventModel):
                 raise ValueError("Best bid must be strictly below best ask")
             return values
 
+        @validator("schema_version")
+        def validate_schema_version(cls, version: int) -> int:
+            if version < 1:
+                raise ValueError("schema_version must be >= 1")
+            return version
+
 
 class DealerQuoteEvent(EventModel):
     instrument_id: str
@@ -136,6 +162,7 @@ class DealerQuoteEvent(EventModel):
     bid: float
     ask: float
     metadata: dict[str, Any] | None = None
+    schema_version: int = 1
 
     if PYDANTIC_V2:
 
@@ -146,6 +173,12 @@ class DealerQuoteEvent(EventModel):
                 raise ValueError("Dealer ask must be strictly greater than bid")
             return ask
 
+        @field_validator("schema_version")
+        def validate_schema_version(cls, version: int) -> int:
+            if version < 1:
+                raise ValueError("schema_version must be >= 1")
+            return version
+
     else:
 
         @validator("ask")
@@ -154,6 +187,12 @@ class DealerQuoteEvent(EventModel):
             if bid is not None and ask is not None and ask <= bid:
                 raise ValueError("Dealer ask must be strictly greater than bid")
             return ask
+
+        @validator("schema_version")
+        def validate_schema_version(cls, version: int) -> int:
+            if version < 1:
+                raise ValueError("schema_version must be >= 1")
+            return version
 
 
 __all__ = [

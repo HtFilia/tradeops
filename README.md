@@ -23,6 +23,12 @@ Once installed, run tests with:
 venv/bin/pytest
 ```
 
+To build the docker stack and run the smoke suite locally, execute:
+
+```bash
+make smoke
+```
+
 ### Docker stack
 
 Run the entire stack (Redis, Postgres, market data agent) with Docker Compose:
@@ -38,16 +44,19 @@ Useful commands:
 
 ### Smoke test (compose required)
 
-With the compose stack running locally:
+`make smoke` compiles the docker images, launches Redis/Postgres/market data,
+runs `pytest -k smoke`, and tears the stack down automatically. To execute the
+smoke suite manually:
 
 ```bash
 export MARKET_DATA_SMOKE=1
+export MARKET_DATA_REDIS_URL=redis://localhost:6379/0
+export MARKET_DATA_POSTGRES_DSN=postgresql://postgres:postgres@localhost:5432/marketdata
 pytest -k smoke
 ```
 
-You can override connection strings via `MARKET_DATA_REDIS_URL`,
-`MARKET_DATA_POSTGRES_DSN`, and stream names via the `MARKET_DATA_*_STREAM`
-environment variables.
+Stream names can be customised via the `MARKET_DATA_*_STREAM` environment
+variables.
 
 ## Git hooks
 
@@ -79,9 +88,22 @@ Hook responsibilities:
 GitHub Actions workflows reside in `.github/workflows/`:
 
 * **ci.yml** – runs on pushes and pull requests. It checks out the repo,
-  installs dependencies, and executes the full pytest suite.
+  installs dependencies, executes the unit/integration suite, and then invokes
+  `scripts/run_smoke.sh` to validate the docker-compose stack end-to-end.
 * **cd.yml** – runs on pushes to `main`. In addition to the CI steps, it builds
   the Docker image to ensure the container artefact is healthy.
+
+## Operational API
+
+The management FastAPI application (`market_data/management_api.py`) exposes
+runtime diagnostics for the agent:
+
+* `GET /health` – last emitted tick per instrument and current liquidity regime.
+* `GET /metrics` – configured tick cadence/tick size plus registered scenario
+  presets.
+
+Mount this app alongside the streaming service when you need operational
+visibility or integration with external monitoring.
 
 ## Commit message template
 

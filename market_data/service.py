@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Any, Callable, Iterable, Protocol, Sequence
+from typing import Any, Awaitable, Callable, Iterable, Protocol, Sequence
 
 from market_data.models import DealerQuoteEvent, OrderBookSnapshot, TickEvent
+from market_data.retry import retry_async
 
 
 class Clock(Protocol):
@@ -113,6 +115,9 @@ class MarketDataService:
     dealer_quote_publisher: DealerQuotePublisher | None = None
     order_book_repository: OrderBookRepository | None = None
     dealer_quote_repository: DealerQuoteRepository | None = None
+    retry_attempts: int = 3
+    retry_backoff_seconds: float = 0.05
+    sleep_provider: Callable[[float], Awaitable[None]] = field(default=asyncio.sleep, repr=False)
     _last_emitted: dict[str, TickEvent] = field(default_factory=dict, init=False)
     _next_emission: dict[str, datetime] = field(default_factory=dict, init=False)
 
@@ -131,26 +136,62 @@ class MarketDataService:
             self._next_emission[feed.instrument_id] = timestamp + feed.update_interval
 
         for feed, event in emissions:
-            await self.repository.persist_tick(event)
-            await self.publisher.publish_tick(event)
+            await retry_async(
+                self.repository.persist_tick,
+                event,
+                attempts=self.retry_attempts,
+                base_delay=self.retry_backoff_seconds,
+                sleep=self.sleep_provider,
+            )
+            await retry_async(
+                self.publisher.publish_tick,
+                event,
+                attempts=self.retry_attempts,
+                base_delay=self.retry_backoff_seconds,
+                sleep=self.sleep_provider,
+            )
             self._last_emitted[event.instrument_id] = event
 
             if feed.order_book_generator is not None:
                 snapshot = feed.order_book_generator.build(event.mid, timestamp)
                 if self.order_book_repository is not None:
-                    await self.order_book_repository.persist_order_book(snapshot)
+                    await retry_async(
+                        self.order_book_repository.persist_order_book,
+                        snapshot,
+                        attempts=self.retry_attempts,
+                        base_delay=self.retry_backoff_seconds,
+                        sleep=self.sleep_provider,
+                    )
                 if self.order_book_publisher is not None:
-                    await self.order_book_publisher.publish_order_book(snapshot)
+                    await retry_async(
+                        self.order_book_publisher.publish_order_book,
+                        snapshot,
+                        attempts=self.retry_attempts,
+                        base_delay=self.retry_backoff_seconds,
+                        sleep=self.sleep_provider,
+                    )
 
             if feed.dealer_quote_generator is not None:
                 quotes = list(feed.dealer_quote_generator.generate(event.mid, timestamp))
                 if quotes:
                     if self.dealer_quote_repository is not None:
                         for quote in quotes:
-                            await self.dealer_quote_repository.persist_dealer_quote(quote)
+                            await retry_async(
+                                self.dealer_quote_repository.persist_dealer_quote,
+                                quote,
+                                attempts=self.retry_attempts,
+                                base_delay=self.retry_backoff_seconds,
+                                sleep=self.sleep_provider,
+                            )
                     if self.dealer_quote_publisher is not None:
                         for quote in quotes:
-                            await self.dealer_quote_publisher.publish_dealer_quote(quote)
+                            await retry_async(
+                                self.dealer_quote_publisher.publish_dealer_quote,
+                                quote,
+                                attempts=self.retry_attempts,
+                                base_delay=self.retry_backoff_seconds,
+                                sleep=self.sleep_provider,
+                            )
 
     def last_tick(self, instrument_id: str) -> TickEvent | None:
         """Return the last emitted tick for the given instrument if available."""

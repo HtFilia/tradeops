@@ -80,6 +80,8 @@ This prevents one slow component (like risk calcs) from stalling the rest (like 
 * Redis publishers encode tick/order-book/quote payloads with deterministic serialization and are exercised by integration tests.
 * Runner loop exists for CLI/daemon execution, and the test suite covers simulators, configuration wiring, persistence, publishers, and service orchestration.
 * Scenario controls (volatility scaling, drift shifts, halts, liquidity overrides) and additional instrument types (futures, swaps) are supported via env-supplied configs.
+* Metadata factories deliver enriched payloads (swap DV01 buckets, futures contract info) and schema versioning ensures downstream compatibility guarantees.
+* Operational FastAPI endpoints (`/health`, `/metrics`) surface real-time diagnostics for instrumentation and monitoring.
 
 **Dev tooling & automation**
 
@@ -90,8 +92,9 @@ This prevents one slow component (like risk calcs) from stalling the rest (like 
 * `Makefile` workflow:
   * `make install` configures git hooks, bootstraps `./venv`, and installs dependencies (preferred first step after cloning).
   * `make test`, `make docker-up`, `make docker-down`, and other targets wrap common routines.
+  * `make smoke` invokes `scripts/run_smoke.sh` to run the docker-compose powered smoke suite locally.
 * GitHub Actions:
-  * `ci.yml` executes the pytest suite on pushes/PRs.
+  * `ci.yml` executes the pytest suite on pushes/PRs and runs the docker-compose smoke tests via `scripts/run_smoke.sh`.
   * `cd.yml` (pushes to `main`) repeats CI steps and performs a Docker build to validate the container image.
 
 **Local docker stack**
@@ -101,7 +104,7 @@ This prevents one slow component (like risk calcs) from stalling the rest (like 
 * Postgres: `docker compose exec postgres psql -U postgres -d marketdata` opens a shell. Tables `market_ticks` and `order_books` are initialised automatically; adjust schema via new SQL in `docker/init`.
 * Agent configuration is controlled by environment variables (connection strings, stream names, default intervals) and optional JSON payload `MARKET_DATA_INSTRUMENTS`. Edit the compose service `environment` block or supply an `.env` file when you need custom feeds.
 * Adding another microservice to the stack: either extend `docker-compose.yml` with a new service definition (reuse the `market_data` service pattern) or supply an override file in your feature branch. Keep build contexts rooted at the repo and prefer passing configuration through environment variables rather than modifying the base image.
-* Smoke tests exist in `tests/test_smoke_stack.py`. Set `MARKET_DATA_SMOKE=1` and point `MARKET_DATA_REDIS_URL`, `MARKET_DATA_POSTGRES_DSN`, and related stream env vars at your running compose stack before executing `pytest -k smoke`. Tests will skip automatically when the stack is unavailable.
+* Smoke tests exist in `tests/test_smoke_stack.py`. Run `make smoke` (or `scripts/run_smoke.sh`) to build the stack, execute the suite, and tear everything down. Set `MARKET_DATA_SMOKE=1` and point `MARKET_DATA_REDIS_URL`, `MARKET_DATA_POSTGRES_DSN`, and related stream env vars at your running compose stack before executing `pytest -k smoke` manually. Tests will skip automatically when the stack is unavailable.
 
 **Next steps**
 

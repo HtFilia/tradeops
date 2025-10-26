@@ -6,6 +6,7 @@ from market_data.configuration import (
     MarketDataConfig,
     OrderBookSettings,
     ScenarioSettings,
+    PRESET_SCENARIOS,
 )
 from market_data.generators.dealer_quotes import DealerQuoteGenerator
 from market_data.generators.order_book import LadderOrderBookGenerator
@@ -141,3 +142,67 @@ def test_swap_instrument_applies_long_run_mean_shift_and_halt() -> None:
     feed = config.build_feed()
     assert feed.update_interval >= timedelta(days=1)
     assert isinstance(feed.simulator, MeanRevertingRateSimulator)
+
+
+def test_instrument_config_uses_preset_scenario_when_named() -> None:
+    scenario_name = next(iter(PRESET_SCENARIOS.keys()))
+    config = InstrumentConfig(
+        instrument_id="EQ-PRESET",
+        instrument_type="EQUITY",
+        start_price=50.0,
+        drift=0.01,
+        volatility=0.2,
+        step_seconds=1.0,
+        tick_size=0.01,
+        update_interval_ms=1000,
+        scenario_name=scenario_name,
+    )
+
+    feed = config.build_feed()
+    assert feed.update_interval != timedelta(milliseconds=1000)
+    assert feed.liquidity_regime == PRESET_SCENARIOS[scenario_name].liquidity_regime
+
+
+def test_swap_metadata_factory_auto_attached() -> None:
+    config = InstrumentConfig(
+        instrument_id="SWAP-15Y",
+        instrument_type="SWAP",
+        start_price=0.025,
+        mean_reversion=0.9,
+        long_run_mean=0.027,
+        volatility=0.001,
+        step_seconds=1.0,
+        tick_size=0.0001,
+        update_interval_ms=1000,
+        tenor="15Y",
+        curve_points={"5Y": 0.022, "10Y": 0.024, "15Y": 0.026},
+        dv01_per_million=1020.0,
+    )
+
+    feed = config.build_feed()
+    assert feed.metadata_factory is not None
+    payload = feed.metadata_factory(0.026)
+    assert payload["tenor"] == "15Y"
+    assert payload["dv01_per_million"] == 1020.0
+
+
+def test_future_metadata_factory_auto_attached() -> None:
+    config = InstrumentConfig(
+        instrument_id="FUT-ES",
+        instrument_type="FUTURE",
+        start_price=4300.0,
+        drift=0.01,
+        volatility=0.18,
+        step_seconds=1.0,
+        tick_size=0.25,
+        update_interval_ms=250,
+        contract_month="2024-06",
+        tick_value=12.5,
+        multiplier=50,
+    )
+
+    feed = config.build_feed()
+    assert feed.metadata_factory is not None
+    payload = feed.metadata_factory(4350.0)
+    assert payload["symbol"] == "FUT-ES"
+    assert payload["notional"] == 4350.0 * 50

@@ -1,14 +1,15 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import timedelta
-from typing import Callable, Iterable, Literal, Sequence
+from datetime import date, timedelta
+from typing import Callable, Iterable, Literal, Mapping, Sequence
 
 from market_data.generators.dealer_quotes import DealerQuoteGenerator
 from market_data.generators.order_book import LadderOrderBookGenerator, OrderBookDepthConfig
 from market_data.service import DealerQuoteSource, InstrumentFeed, OrderBookGenerator
 from market_data.simulation.equity import GeometricBrownianMotionSimulator
 from market_data.simulation.rates import MeanRevertingRateSimulator
+from market_data.metadata import future_contract_metadata_factory, swap_curve_metadata_factory
 
 
 MetadataFactory = Callable[[float], dict[str, float]]
@@ -85,15 +86,22 @@ class InstrumentConfig:
     underlier_instrument_id: str | None = None
     tenor: str | None = None
     contract_month: str | None = None
-    notional: float | None = None
+    curve_points: Mapping[str, float] | None = None
+    dv01_per_million: float | None = None
+    tick_value: float | None = None
+    multiplier: float | None = None
     order_book: OrderBookSettings | None = None
     dealer_quotes: DealerQuoteSettings | None = None
     metadata_factory: MetadataFactory | None = None
     scenario: ScenarioSettings | None = None
+    scenario_name: str | None = None
 
     def build_feed(self) -> InstrumentFeed:
-        scenario = self.scenario or ScenarioSettings()
+        scenario = self.scenario or (
+            PRESET_SCENARIOS[self.scenario_name] if self.scenario_name else ScenarioSettings()
+        )
         generator = self._build_simulator(scenario)
+        metadata_factory = self._choose_metadata_factory()
         order_book_generator = (
             self.order_book.to_generator(self.instrument_id, self.seed) if self.order_book else None
         )
@@ -112,10 +120,33 @@ class InstrumentConfig:
             tick_size=self.tick_size,
             liquidity_regime=liquidity_regime,
             update_interval=timedelta(milliseconds=update_interval_ms),
-            metadata_factory=self.metadata_factory,
+            metadata_factory=metadata_factory,
             order_book_generator=order_book_generator,
             dealer_quote_generator=dealer_quote_generator,
         )
+
+    def _choose_metadata_factory(self) -> MetadataFactory | None:
+        if self.metadata_factory is not None:
+            return self.metadata_factory
+
+        if self.instrument_type in ("SWAP", "RATE") and self.tenor and self.curve_points and self.dv01_per_million is not None:
+            return swap_curve_metadata_factory(
+                tenor=self.tenor,
+                curve_points=self.curve_points,
+                dv01_per_million=self.dv01_per_million,
+            )
+
+        if self.instrument_type in ("FUTURE", "OPTION") and self.contract_month and self.tick_value and self.multiplier:
+            symbol = self.instrument_id
+            return future_contract_metadata_factory(
+                symbol=symbol,
+                contract_month=self.contract_month,
+                expiry=_contract_month_to_date(self.contract_month),
+                tick_value=self.tick_value,
+                multiplier=self.multiplier,
+            )
+
+        return None
 
     def _build_simulator(self, scenario: ScenarioSettings):
         if self.instrument_type in ("EQUITY", "OPTION", "FUTURE"):
@@ -156,3 +187,15 @@ class MarketDataConfig:
 
     def build_feeds(self) -> list[InstrumentFeed]:
         return [instrument.build_feed() for instrument in self.instruments]
+
+
+PRESET_SCENARIOS: dict[str, ScenarioSettings] = {
+    "volatile": ScenarioSettings(volatility_scale=1.5, liquidity_regime="LOW", update_interval_ms_override=1500),
+    "halted": ScenarioSettings(halted=True, update_interval_ms_override=86_400_000),
+    "rally": ScenarioSettings(drift_shift=0.01, liquidity_regime="HIGH"),
+}
+
+
+def _contract_month_to_date(contract_month: str) -> date:
+    year, month = contract_month.split("-")
+    return date(int(year), int(month), 1)

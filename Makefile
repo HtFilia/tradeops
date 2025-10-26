@@ -2,7 +2,7 @@ PYTHON := python3
 VENV_DIR := venv
 HOOKS_DIR := .githooks
 
-.PHONY: install hooks venv clean lint test deploy docker-up docker-down
+.PHONY: install hooks venv clean lint test deploy docker-up docker-down smoke
 
 install: hooks venv
 	@echo "Installing Python dependencies..."
@@ -37,3 +37,6 @@ docker-up:
 
 docker-down:
 	docker compose down
+
+smoke: install
+	scripts/run_smoke.sh

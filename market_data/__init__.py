@@ -9,4 +9,7 @@ __all__ = [
     "generators",
     "configuration",
     "runner",
+    "metadata",
+    "management_api",
+    "retry",
 ]

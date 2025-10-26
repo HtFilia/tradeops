@@ -27,6 +27,7 @@ def test_tick_event_contract_serializes_expected_fields() -> None:
         "mid": 100.0,
         "liquidity_regime": "HIGH",
         "metadata": {"spread_bps": 10},
+        "schema_version": 1,
     }
 
 
@@ -47,6 +48,7 @@ def test_order_book_snapshot_requires_sorted_levels() -> None:
     payload = json.loads(snapshot.model_dump_json())
     assert payload["bids"][0]["price"] >= payload["bids"][1]["price"]
     assert payload["asks"][0]["price"] <= payload["asks"][1]["price"]
+    assert payload["schema_version"] == 1
 
 
 def test_order_book_snapshot_rejects_unordered_depth() -> None:
@@ -84,4 +86,17 @@ def test_dealer_quote_event_validates_positive_spread() -> None:
             timestamp=datetime(2024, 1, 1, 12, 0, tzinfo=timezone.utc),
             bid=0.013,
             ask=0.0125,
+        )
+
+
+def test_tick_event_rejects_invalid_schema_version() -> None:
+    with pytest.raises(ValidationError):
+        TickEvent(
+            instrument_id="EQ-ABC",
+            timestamp=datetime(2024, 1, 1, 12, 0, tzinfo=timezone.utc),
+            bid=99.0,
+            ask=101.0,
+            mid=100.0,
+            liquidity_regime="MEDIUM",
+            schema_version=0,
         )

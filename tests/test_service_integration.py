@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 import pytest
 
 from market_data.generators.dealer_quotes import DealerQuoteGenerator
 from market_data.generators.order_book import LadderOrderBookGenerator, OrderBookDepthConfig
+from market_data.metadata import future_contract_metadata_factory
 from market_data.models import DealerQuoteEvent, OrderBookSnapshot, TickEvent
 from market_data.service import InstrumentFeed, MarketDataService
 from market_data.simulation.equity import GeometricBrownianMotionSimulator
@@ -250,3 +251,41 @@ def test_market_data_service_emits_books_and_quotes() -> None:
     assert len(book_repository.snapshots) == 1
     assert len(quote_publisher.quotes) == 1
     assert len(quote_repository.quotes) == 1
+
+
+def test_market_data_service_attaches_metadata_to_ticks() -> None:
+    simulator = GeometricBrownianMotionSimulator(
+        instrument_id="FUT-ES",
+        start_price=4300.0,
+        drift=0.01,
+        volatility=0.18,
+        step_seconds=1.0,
+        seed=5,
+    )
+    feed = InstrumentFeed(
+        instrument_id="FUT-ES",
+        simulator=simulator,
+        tick_size=0.25,
+        liquidity_regime="HIGH",
+        metadata_factory=future_contract_metadata_factory(
+            symbol="FUT-ES",
+            contract_month="2024-06",
+            expiry=date(2024, 6, 21),
+            tick_value=12.5,
+            multiplier=50,
+        ),
+    )
+
+    tick_publisher = RecordingPublisher()
+    tick_repository = RecordingRepository()
+    clock = FrozenClock(datetime(2024, 1, 1, tzinfo=timezone.utc))
+    service = MarketDataService(
+        feeds=[feed],
+        publisher=tick_publisher,
+        repository=tick_repository,
+        clock=clock,
+    )
+
+    asyncio.run(service.pump_once())
+
+    assert tick_publisher.published_ticks[0].metadata["symbol"] == "FUT-ES"
