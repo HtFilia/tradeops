@@ -34,7 +34,7 @@ async def test_market_data_stack_streams_and_persists() -> None:
         start_time = time.time()
         entries = []
         while time.time() - start_time < 10 and not entries:
-            entries = await redis.xread({tick_stream: "0-0"}, timeout=1000)
+            entries = await redis.xread({tick_stream: "0-0"}, block=1000)
 
         assert entries, "expected ticks to be published onto Redis stream"
 
@@ -43,5 +43,4 @@ async def test_market_data_stack_streams_and_persists() -> None:
             assert row["cnt"] > 0, "expected persisted ticks in Postgres"
     finally:
         await redis.close()
-        await redis.wait_closed()
         await pool.close()

@@ -12,8 +12,8 @@ cleanup() {
 trap cleanup EXIT
 
 export MARKET_DATA_SMOKE=${MARKET_DATA_SMOKE:-1}
-export MARKET_DATA_REDIS_URL=${MARKET_DATA_REDIS_URL:-redis://localhost:6379/0}
-export MARKET_DATA_POSTGRES_DSN=${MARKET_DATA_POSTGRES_DSN:-postgresql://postgres:postgres@localhost:5432/marketdata}
+export MARKET_DATA_REDIS_URL=${MARKET_DATA_REDIS_URL:-redis://127.0.0.1:6379/0}
+export MARKET_DATA_POSTGRES_DSN=${MARKET_DATA_POSTGRES_DSN:-postgresql://postgres:postgres@127.0.0.1:5432/marketdata}
 
 echo "[smoke] Running pytest smoke suite..."
 pytest -k smoke
