@@ -90,13 +90,35 @@ class PostgresAccountRepository(AccountRepository):
     pool: SupportsAcquire
     schema: str = "public"
 
-    async def create_account(self, user_id: str, starting_balance: Decimal, currency: str) -> None:
+    async def create_account(
+        self,
+        user_id: str,
+        starting_balance: Decimal,
+        currency: str,
+        margin_allowed: bool = False,
+        created_at: datetime | None = None,
+        updated_at: datetime | None = None,
+    ) -> None:
         query = f"""
-        INSERT INTO {self.schema}.accounts (user_id, cash_balance, base_currency)
-        VALUES ($1, $2, $3)
+        INSERT INTO {self.schema}.accounts (
+            user_id,
+            cash_balance,
+            base_currency,
+            margin_allowed,
+            created_at,
+            updated_at
+        )
+        VALUES ($1, $2, $3, $4, $5, $6)
+        ON CONFLICT (user_id) DO UPDATE SET
+            cash_balance = EXCLUDED.cash_balance,
+            margin_allowed = EXCLUDED.margin_allowed,
+            updated_at = EXCLUDED.updated_at
         """
+        now = datetime.now(timezone.utc)
+        created = created_at or now
+        updated = updated_at or now
         async with self.pool.acquire() as conn:  # type: ignore[attr-defined]
-            await conn.execute(query, user_id, starting_balance, currency)
+            await conn.execute(query, user_id, starting_balance, currency, margin_allowed, created, updated)
 
 
 __all__ = [
