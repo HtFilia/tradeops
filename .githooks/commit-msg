@@ -20,7 +20,7 @@ if [[ ${#LINE1} -gt 80 ]]; then
   exit 1
 fi
 
-if [[ ! $LINE1 =~ ^(add|remove|refactor|change|revert|admin):\ .+$ ]]; then
+if [[ ! $LINE1 =~ ^(add|remove|refactor|change|revert|admin|fix):\ .+$ ]]; then
   echo "[commit-msg] First line must match 'verb: title' with approved verbs." >&2
   exit 1
 fi
