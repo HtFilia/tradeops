@@ -1,0 +1,54 @@
+version: "3.9"
+
+services:
+  redis:
+    image: redis:7.2
+    container_name: market-data-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  postgres:
+    image: postgres:15
+    container_name: market-data-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: marketdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./docker/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d marketdata"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  market_data:
+    build: .
+    container_name: market-data-service
+    command: ["python", "-m", "market_data.app"]
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      REDIS_TICK_STREAM: marketdata_ticks
+      REDIS_ORDER_BOOK_STREAM: marketdata_order_books
+      REDIS_DEALER_QUOTE_STREAM: marketdata_dealer_quotes
+      POSTGRES_DSN: postgresql://postgres:postgres@postgres:5432/marketdata
+      POSTGRES_SCHEMA: public
+      MARKET_DATA_INTERVAL_SECONDS: "0.2"
+    volumes:
+      - .:/app:ro
+
+volumes:
+  postgres-data:
