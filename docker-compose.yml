@@ -50,5 +50,36 @@ services:
     volumes:
       - .:/app:ro
 
+  trading_agent:
+    build: .
+    container_name: trading-agent-service
+    command:
+      [
+        "uvicorn",
+        "trading.app:create_default_app",
+        "--factory",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8081",
+      ]
+    ports:
+      - "8081:8081"
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      market_data:
+        condition: service_started
+    environment:
+      TRADING_REDIS_URL: redis://redis:6379/0
+      TRADING_POSTGRES_DSN: postgresql://postgres:postgres@postgres:5432/marketdata
+      TRADING_MARKETDATA_STREAM: marketdata_stream
+      TRADING_EXECUTION_STREAM: execution_stream
+      TRADING_ORDER_STREAM: order_commands
+    volumes:
+      - .:/app:ro
+
 volumes:
   postgres-data:

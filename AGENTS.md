@@ -143,6 +143,13 @@ This prevents one slow component (like risk calcs) from stalling the rest (like 
 * Trading logic has to enforce rules (no negative balance unless margin allowed, etc.).
 * It’s the gatekeeper of account mutation. That logic must stay auditable and testable.
 
+**Implementation notes:**
+
+* Domain contracts and simulators live under `trading/domain/`.
+* Service coordination, matching, and validation reside in `trading/services/order_service.py`.
+* FastAPI and infrastructure wiring are exposed via `trading/app.py` with adapters in `trading/infrastructure/`.
+* End-to-end, domain, and contract tests execute from `tests/trading/`.
+
 ---
 
 ### 3. Portfolio & Risk Agent

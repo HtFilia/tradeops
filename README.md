@@ -119,3 +119,31 @@ Allowed verbs: `add`, `remove`, `refactor`, `change`, `revert`, `admin`.
 
 Remember to keep explanations thorough—describe the behaviour change, the reason
 behind it, and notable testing decisions.
+
+## Trading Agent
+
+An asynchronous trading agent now lives under `trading/`. It accepts authenticated
+order requests, matches them against the latest simulated order book, persists
+cash/position state, and publishes executions onto the configured Redis stream.
+
+### Running the HTTP API
+
+```
+uvicorn trading.app:create_default_app --factory --reload
+```
+
+Configuration is sourced from the same environment variables used across the
+stack (`TRADING_REDIS_URL`, `TRADING_POSTGRES_DSN`, `TRADING_MARKETDATA_STREAM`,
+`TRADING_EXECUTION_STREAM`, `TRADING_ORDER_STREAM`). The bootstrap wiring opens
+an asyncpg pool and a Redis client on startup; ensure the services from the
+docker-compose stack are available before launching the API.
+
+### Tests
+
+```
+venv/bin/pytest tests/trading
+```
+
+The suite covers domain contracts, infrastructure adapters, service coordination,
+and the FastAPI surface, keeping regression protection in line with our TDD
+expectations.
