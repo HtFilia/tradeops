@@ -24,6 +24,10 @@ fi
 if command -v npm >/dev/null 2>&1 && [[ -f frontend/package.json ]]; then
   echo "[pre-commit] Building frontend (npm run build)..."
   pushd frontend >/dev/null
+  if [[ ! -d node_modules ]]; then
+    echo "[pre-commit] node_modules missing; running npm ci..."
+    npm ci >/dev/null
+  fi
   if ! npm run build >/dev/null; then
     cat <<'EOF'
 [pre-commit] Frontend build failed. Fix issues or set SKIP_TEST_COMMIT=1 to bypass (not recommended).

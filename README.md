@@ -228,3 +228,12 @@ venv/bin/pytest -m e2e
 ```
 
 The frontend also ships with `npm run build` for CI verification.
+
+## Release process
+
+* Release work happens on the `release` branch (or `release/*` branches).
+* Each release commit must be tagged with the application version in the
+  `x.y.z` or `x.y.z+flag` format (for example `1.2.0` or `1.2.0+hotfix`).
+  tags are enforced by CI.
+* The CD workflow builds and publishes the Docker image using the release tag as
+  the image version.

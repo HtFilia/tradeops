@@ -134,3 +134,27 @@ jobs:
       - name: Tear down stack
         if: always()
         run: docker compose down
+
+  release_tag_validation:
+    needs: unit_and_integration
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/release')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate release tag
+        run: |
+          set -euo pipefail
+          git fetch --tags --force
+          VERSION=$(git describe --tags --exact-match HEAD 2>/dev/null || true)
+          if [ -z "$VERSION" ]; then
+            echo "::error::Release branch commits must have an exact version tag"
+            exit 1
+          fi
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(\+[A-Za-z0-9._-]+)?$ ]]; then
+            echo "::error::Tag '$VERSION' does not match required x.y.z or x.y.z+flag format"
+            exit 1
+          fi

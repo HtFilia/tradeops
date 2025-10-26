@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from datetime import timedelta
 from typing import Sequence
+from contextlib import asynccontextmanager
 
 import asyncpg
 from fastapi import FastAPI
@@ -65,25 +66,29 @@ def create_default_app() -> FastAPI:
         cors_origins=cors_origins,
     )
 
-    @app.on_event("startup")
-    async def on_startup() -> None:
+    password_hasher = Argon2PasswordHasher()
+
+    @asynccontextmanager
+    async def lifespan(_: FastAPI):
         pool = await asyncpg.create_pool(dsn=postgres_dsn)
         pool_proxy.set_pool(pool)
         await _prepare_schema(pool, postgres_schema)
         await _ensure_default_user(
             user_repository=user_repository,
             account_repository=account_repository,
-            password_hasher=Argon2PasswordHasher(),
+            password_hasher=password_hasher,
             config=config,
             email=env.get("AUTH_DEFAULT_USER_EMAIL", "demo@example.com"),
             password=env.get("AUTH_DEFAULT_USER_PASSWORD", "demo"),
         )
+        try:
+            yield
+        finally:
+            if pool_proxy._pool is not None:
+                await pool_proxy._pool.close()
+            await redis_client.aclose()
 
-    @app.on_event("shutdown")
-    async def on_shutdown() -> None:
-        if pool_proxy._pool is not None:
-            await pool_proxy._pool.close()
-        await redis_client.aclose()
+    app.router.lifespan_context = lifespan
 
     return app
 
