@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "StructuredLogEntry",
+  "description": "Standard log entry schema shared across backend and frontend services.",
+  "type": "object",
+  "required": ["timestamp", "level", "component", "message"],
+  "properties": {
+    "timestamp": {
+      "description": "UTC timestamp in ISO 8601 format with timezone offset.",
+      "type": "string",
+      "format": "date-time"
+    },
+    "level": {
+      "description": "Log severity level (e.g. DEBUG, INFO, WARN, ERROR).",
+      "type": "string"
+    },
+    "component": {
+      "description": "Name of the service or subsystem emitting the log.",
+      "type": "string",
+      "minLength": 1
+    },
+    "event": {
+      "description": "Machine-readable event identifier.",
+      "type": "string"
+    },
+    "message": {
+      "description": "Human-readable message describing the event.",
+      "type": "string"
+    },
+    "request_id": {
+      "description": "HTTP request identifier when available.",
+      "type": "string"
+    },
+    "correlation_id": {
+      "description": "Trace or correlation identifier for linking related events.",
+      "type": "string"
+    },
+    "span_id": {
+      "description": "Span identifier for distributed tracing systems.",
+      "type": "string"
+    },
+    "context": {
+      "description": "Structured contextual payload containing event-specific details.",
+      "type": "object",
+      "additionalProperties": true
+    },
+    "exception": {
+      "description": "Exception string captured when errors occur.",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true
+}

@@ -20,6 +20,9 @@ from trading.domain.models import (
     PositionRecord,
 )
 from trading.ports.repositories import ExecutionPublisher, TradingUnitOfWork
+from common.logging import get_logger
+
+logger = get_logger("trading.order_service")
 
 
 class OrderService:
@@ -46,6 +49,20 @@ class OrderService:
         order_id = self._id_generator()
         now = self._clock()
         async with self._uow_factory() as uow:
+            logger.info(
+                "Submitting order",
+                extra={
+                    "event": "trading.order.submit",
+                    "context": {
+                        "order_id": order_id,
+                        "user_id": order_request.user_id,
+                        "instrument_id": order_request.instrument_id,
+                        "side": order_request.side.value,
+                        "order_type": order_request.order_type.value,
+                        "quantity": order_request.quantity,
+                    },
+                },
+            )
             account = await uow.accounts.get_account(order_request.user_id)
             if account is None:
                 raise OrderValidationError("account not found for user")
@@ -117,6 +134,29 @@ class OrderService:
                     timestamp=now,
                 )
                 await self._execution_publisher.publish(execution_event)
+                logger.info(
+                    "Order filled",
+                    extra={
+                        "event": "trading.order.filled",
+                        "context": {
+                            "order_id": order_id,
+                            "filled_quantity": filled_quantity,
+                            "average_price": average_price,
+                            "status": status.value,
+                        },
+                    },
+                )
+            else:
+                logger.info(
+                    "Order accepted with no fills",
+                    extra={
+                        "event": "trading.order.accepted",
+                        "context": {
+                            "order_id": order_id,
+                            "status": status.value,
+                        },
+                    },
+                )
 
             return order_record
 

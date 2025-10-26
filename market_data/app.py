@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import logging
 import os
 from dataclasses import asdict
 from datetime import datetime, timezone
@@ -30,8 +29,9 @@ from market_data.publisher import (
 )
 from market_data.runner import MarketDataRunner
 from market_data.service import MarketDataService
+from common.logging import configure_structured_logging
 
-logger = logging.getLogger("market_data.app")
+logger = configure_structured_logging("market_data.app")
 
 
 class SystemClock:
@@ -134,9 +134,21 @@ async def create_market_data_service() -> tuple[MarketDataService, Callable[[], 
     dealer_quote_stream = os.getenv("REDIS_DEALER_QUOTE_STREAM", "marketdata_dealer_quotes")
 
     instruments = list(load_instrument_configs())
-    logger.info("Loaded %d instrument configs", len(instruments))
+    logger.info(
+        "Loaded instrument configs",
+        extra={
+            "event": "market_data.instrument_configs_loaded",
+            "context": {"instrument_count": len(instruments)},
+        },
+    )
     for inst in instruments:
-        logger.debug("Instrument config: %s", asdict(inst))
+        logger.debug(
+            "Instrument configuration",
+            extra={
+                "event": "market_data.instrument_config_parsed",
+                "context": {"instrument": asdict(inst)},
+            },
+        )
 
     feeds = MarketDataConfig(instruments=instruments).build_feeds()
 
@@ -152,7 +164,10 @@ async def create_market_data_service() -> tuple[MarketDataService, Callable[[], 
     )
 
     async def cleanup() -> None:
-        logger.info("Shutting down market data service...")
+        logger.info(
+            "Shutting down market data service",
+            extra={"event": "market_data.shutdown"},
+        )
         await pool.close()
         await redis.close()
         await redis.wait_closed()
@@ -162,10 +177,9 @@ async def create_market_data_service() -> tuple[MarketDataService, Callable[[], 
 
 async def run() -> None:
     interval_seconds = float(os.getenv("MARKET_DATA_INTERVAL_SECONDS", "0.2"))
-    logging.basicConfig(
-        level=os.getenv("MARKET_DATA_LOG_LEVEL", "INFO"),
-        format="%(asctime)s [%(levelname)s] %(name)s - %(message)s",
-    )
+    log_level = os.getenv("MARKET_DATA_LOG_LEVEL")
+    if log_level:
+        logger.setLevel(log_level.upper())
     service, cleanup = await create_market_data_service()
     runner = MarketDataRunner(service=service, interval_seconds=interval_seconds)
 

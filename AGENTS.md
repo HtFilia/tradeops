@@ -440,7 +440,16 @@ This is how we keep testing clean.
 * We will treat missing type hints as a bug.
 * Why? Consistency + future static analysis + possible mypy/marshmallow/pydantic validation.
 
-### 7. Pydantic models for IO schemas
+### 7. Structured logging contract
+
+* All services (backend and frontend) emit JSON logs that match `logging.schema.json`.
+* Use `common/logging.py` in Python agents to configure loggers; frontend code should
+  mirror the same field names when instrumentation lands.
+* Every log should include a human-readable `message`, a machine-friendly `event`
+  key, and attach any additional details inside the `context` object to keep the
+  schema stable for downstream ingestion.
+
+### 8. Pydantic models for IO schemas
 
 * Any data crossing process boundaries (e.g. a Tick on `marketdata_stream`, an Execution on `execution_stream`) MUST be defined as a Pydantic model.
 * This gives:

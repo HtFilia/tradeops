@@ -126,6 +126,15 @@ An asynchronous trading agent now lives under `trading/`. It accepts authenticat
 order requests, matches them against the latest simulated order book, persists
 cash/position state, and publishes executions onto the configured Redis stream.
 
+## Structured Logging
+
+All services emit JSON logs that follow `logging.schema.json`. The helper in
+`common/logging.py` wires Python's logging subsystem to this schema, ensuring
+messages stay human-readable while remaining easy to ingest elsewhere. Frontend
+code should serialize the same field set (`timestamp`, `level`, `component`,
+`event`, `message`, optional correlation identifiers, and a `context` object)
+when we instrument SPA interactions.
+
 ### Running the HTTP API
 
 ```

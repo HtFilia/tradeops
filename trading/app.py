@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 import asyncpg
 from fastapi import Depends, FastAPI, HTTPException, status
 from redis.asyncio import Redis
+from common.logging import configure_structured_logging, get_logger
 
 from trading.api.schemas import OrderCreateRequest, OrderResponse
 from trading.config import TradingSettings, load_settings
@@ -22,6 +23,8 @@ from trading.infrastructure.uow import AsyncpgTradingUnitOfWork
 from trading.ports.market_data import MarketDataGateway
 from trading.ports.repositories import TradingUnitOfWork
 from trading.services.order_service import OrderService
+
+logger = configure_structured_logging("trading.app")
 
 
 def create_app(
@@ -54,7 +57,21 @@ def create_app(
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
         except OrderValidationError as exc:
             raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
-        return OrderResponse.from_domain(order)
+        response = OrderResponse.from_domain(order)
+        logger.info(
+            "Order created successfully",
+            extra={
+                "event": "trading.order.created",
+                "context": {
+                    "order_id": response.order_id,
+                    "instrument_id": response.instrument_id,
+                    "side": response.side.value,
+                    "status": response.status.value,
+                    "filled_quantity": response.filled_quantity,
+                },
+            },
+        )
+        return response
 
     @app.get("/health", status_code=status.HTTP_200_OK)
     async def healthcheck() -> dict[str, str]:
@@ -114,6 +131,17 @@ def create_default_app(settings: TradingSettings | None = None) -> FastAPI:
             id_generator=id_generator,
             clock=clock,
         )
+        logger.info(
+            "Trading agent started",
+            extra={
+                "event": "trading.app.startup",
+                "context": {
+                    "redis_url": resolved_settings.redis_url,
+                    "postgres_dsn": resolved_settings.postgres_dsn,
+                    "execution_stream": resolved_settings.execution_stream,
+                },
+            },
+        )
 
     @app.on_event("shutdown")
     async def on_shutdown() -> None:
@@ -121,6 +149,7 @@ def create_default_app(settings: TradingSettings | None = None) -> FastAPI:
             await pool.close()
         if redis_client is not None:
             await redis_client.aclose()
+        logger.info("Trading agent shut down", extra={"event": "trading.app.shutdown"})
 
     @app.post("/orders", response_model=OrderResponse, status_code=status.HTTP_201_CREATED)
     async def create_order_endpoint(
