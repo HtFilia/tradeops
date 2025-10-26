@@ -12,13 +12,28 @@ if [[ "${SKIP_TEST_COMMIT:-0}" == "1" ]]; then
   exit 0
 fi
 
-echo "[pre-commit] Running pytest..."
-if ! pytest; then
+echo "[pre-commit] Running pytest (unit + integration)..."
+if ! pytest -m "not e2e"; then
   cat <<'EOF'
-[pre-commit] Test suite failed.
+[pre-commit] Pytest suite failed.
 Set SKIP_TEST_COMMIT=1 to bypass tests (for emergency commits only).
 EOF
   exit 1
 fi
 
-echo "[pre-commit] Tests passed."
+if command -v npm >/dev/null 2>&1 && [[ -f frontend/package.json ]]; then
+  echo "[pre-commit] Building frontend (npm run build)..."
+  pushd frontend >/dev/null
+  if ! npm run build >/dev/null; then
+    cat <<'EOF'
+[pre-commit] Frontend build failed. Fix issues or set SKIP_TEST_COMMIT=1 to bypass (not recommended).
+EOF
+    popd >/dev/null
+    exit 1
+  fi
+  popd >/dev/null
+else
+  echo "[pre-commit] npm not found or frontend/package.json missing; skipping frontend build."
+fi
+
+echo "[pre-commit] Checks passed."
