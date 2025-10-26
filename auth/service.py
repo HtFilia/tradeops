@@ -61,5 +61,8 @@ class AuthService:
     async def logout_user(self, token: SessionToken) -> None:
         await self._session_store.revoke(token)
 
+    async def get_session(self, token: SessionToken) -> AuthenticatedSession | None:
+        return await self._session_store.get(token)
+
 
 __all__ = ["AuthService", "InvalidCredentialsError", "UserAlreadyExistsError"]

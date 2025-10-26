@@ -2,7 +2,7 @@ PYTHON := python3
 VENV_DIR := venv
 HOOKS_DIR := .githooks
 
-.PHONY: install hooks venv clean lint test deploy docker-up docker-down trading-agent-up smoke
+.PHONY: install hooks venv clean lint test deploy docker-up docker-down trading-agent-up stack-up smoke
 
 install: hooks venv
 	@echo "Installing Python dependencies..."
@@ -30,7 +30,7 @@ lint:
 	$(VENV_DIR)/bin/flake8 market_data tests
 
 test:
-	$(VENV_DIR)/bin/pytest
+	$(VENV_DIR)/bin/pytest -m "not e2e"
 
 docker-up:
 	docker compose up --build market_data
@@ -40,6 +40,9 @@ docker-down:
 
 trading-agent-up:
 	docker compose up --build trading_agent
+
+stack-up:
+	docker compose up --build market_data trading_agent auth_service
 
 smoke: install
 	scripts/run_smoke.sh

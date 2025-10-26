@@ -3,6 +3,8 @@ from datetime import datetime, timezone
 import pytest
 from pydantic import ValidationError
 
+import pytest
+
 from trading.domain.models import (
     DealerQuote,
     ExecutionEvent,
@@ -16,6 +18,8 @@ from trading.domain.models import (
     OrderType,
     PositionRecord,
 )
+
+pytestmark = pytest.mark.unit
 
 
 def test_limit_order_request_validates_positive_quantity() -> None:

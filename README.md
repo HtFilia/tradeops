@@ -126,6 +126,46 @@ An asynchronous trading agent now lives under `trading/`. It accepts authenticat
 order requests, matches them against the latest simulated order book, persists
 cash/position state, and publishes executions onto the configured Redis stream.
 
+## Frontend UI (React + Vite)
+
+A lightweight React single-page app lives in `frontend/`. It polls the market
+data management API for the latest ticks and submits demo orders to the trading
+agent. Both backends expose CORS-friendly endpoints by default so the UI can run
+locally via Vite.
+
+### Getting started
+
+1. Start the docker stack so Redis, Postgres, market data, the trading agent,
+   and the auth service are running. The services expose:
+   * Market data management API – `http://localhost:8080`
+   * Trading agent REST API – `http://localhost:8081`
+   * Auth service – `http://localhost:8082`
+   ```bash
+   make stack-up        # or: docker compose up --build market_data trading_agent auth_service
+   ```
+2. Install frontend dependencies and launch the dev server:
+   ```bash
+   cd frontend
+   npm install
+   npm run dev
+   ```
+   Vite serves the UI on `http://localhost:5173` (configurable via
+   `VITE_DEV_PORT`). The page displays live market snapshots and an order form.
+3. To customise service endpoints, set the following environment variables
+   before running the dev server:
+   ```bash
+   export VITE_MARKET_DATA_BASE_URL="http://localhost:8080"
+   export VITE_TRADING_BASE_URL="http://localhost:8081"
+   export VITE_AUTH_BASE_URL="http://localhost:8082"
+   ```
+4. Hit `http://localhost:5173` and use the sign-in form. Registration is wired
+   through the auth agent; newly created users receive starting balances defined
+   by `AUTH_STARTING_BALANCE`. A demo account (`demo@example.com` / `demo`) is
+   seeded automatically for quick testing.
+
+All UI interactions emit JSON logs that match `logging.schema.json`, keeping the
+schema consistent with backend services.
+
 ## Structured Logging
 
 All services emit JSON logs that follow `logging.schema.json`. The helper in
@@ -149,10 +189,34 @@ docker-compose stack are available before launching the API.
 
 ### Tests
 
-```
-venv/bin/pytest tests/trading
+We organise tests by scope using Pytest markers:
+
+* `unit` – fast, isolated tests (default marker for many modules)
+* `integration` – exercises multiple layers (database/redis/service wiring)
+* `e2e` – full stack verification requiring the docker compose stack
+
+Common commands:
+
+```bash
+# Run unit + integration tests locally
+venv/bin/pytest -m "not e2e"
+
+# Run only unit tests
+venv/bin/pytest -m unit
+
+# Run integration tests
+venv/bin/pytest -m integration
 ```
 
-The suite covers domain contracts, infrastructure adapters, service coordination,
-and the FastAPI surface, keeping regression protection in line with our TDD
-expectations.
+End-to-end tests are gated behind an environment flag so they only run when the
+stack is available (typically CI):
+
+```bash
+RUN_E2E_TESTS=1 \
+E2E_MARKET_URL=http://localhost:8080 \
+E2E_TRADING_URL=http://localhost:8081 \
+E2E_AUTH_URL=http://localhost:8082 \
+venv/bin/pytest -m e2e
+```
+
+The frontend also ships with `npm run build` for CI verification.

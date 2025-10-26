@@ -24,6 +24,7 @@ from trading.domain.models import (
 )
 from trading.services.order_service import OrderService
 
+pytestmark = pytest.mark.integration
 
 def build_book() -> ListedInstrumentBook:
     return ListedInstrumentBook(

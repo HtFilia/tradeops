@@ -289,6 +289,8 @@ This prevents one slow component (like risk calcs) from stalling the rest (like 
 * React SPA
 * WebSocket client for live updates
 * Dark mode by default (this is a trading app, not a hospital UI)
+* Current minimal UI lives under `frontend/` (React + Vite) and polls REST
+  endpoints until the WebSocket gateway is ready.
 
 ---
 
@@ -600,6 +602,9 @@ We assert:
 * Delta exposure matches quantities.
 
 These tests prove the entire pipeline works “front-to-back” and are the closest thing to regression tests for big refactors.
+
+We treat these as `e2e` tests in the repo. They are skipped by default and only
+run when `RUN_E2E_TESTS=1` is present (CI or a developer with the stack running).
 
 ---
 

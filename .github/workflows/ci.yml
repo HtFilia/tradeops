@@ -7,7 +7,7 @@ on:
     branches: ["**"]
 
 jobs:
-  tests:
+  unit_and_integration:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -18,18 +18,31 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install dependencies
+      - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run pytest
+      - name: Run unit + integration pytest suite
         env:
           PYTHONPATH: ${{ github.workspace }}
-        run: pytest
+        run: pytest -m "not e2e"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend deps and build
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
 
   smoke:
-    needs: tests
+    needs: unit_and_integration
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -40,7 +53,7 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install dependencies
+      - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
@@ -48,4 +61,76 @@ jobs:
       - name: Run docker smoke tests
         env:
           PYTHONPATH: ${{ github.workspace }}
-        run: scripts/run_smoke.sh
+        run: |
+          set -euo pipefail
+          docker compose up -d --build market_data
+          trap 'docker compose down' EXIT
+          pytest -k smoke
+
+  e2e:
+    needs: smoke
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Launch stack
+        run: |
+          set -euo pipefail
+          docker compose up -d --build market_data trading_agent auth_service
+
+      - name: Wait for stack readiness
+        run: |
+          set -euo pipefail
+          function wait_for() {
+            local url=$1
+            local expected=$2
+            for i in {1..40}; do
+              status=$(curl -s -o /dev/null -w "%{http_code}" "$url" || echo "000")
+              if [ "$status" = "$expected" ]; then
+                echo "Ready: $url ($status)"
+                return 0
+              fi
+              sleep 3
+            done
+            echo "Timed out waiting for $url (last status=$status)" >&2
+            return 1
+          }
+          wait_for http://localhost:8080/health 200
+          wait_for http://localhost:8081/health 200
+          # Session endpoint returns 401 when unauthenticated; treat as ready.
+          for i in {1..40}; do
+            status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8082/auth/session || echo "000")
+            if [ "$status" = "200" ] || [ "$status" = "401" ]; then
+              echo "Auth service responsive (status=$status)"
+              break
+            fi
+            sleep 3
+          done
+
+      - name: Run E2E pytest suite
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+          RUN_E2E_TESTS: "1"
+          E2E_MARKET_URL: "http://localhost:8080"
+          E2E_TRADING_URL: "http://localhost:8081"
+          E2E_AUTH_URL: "http://localhost:8082"
+        run: pytest -m e2e
+
+      - name: Dump docker logs (failure aid)
+        if: failure()
+        run: docker compose logs
+
+      - name: Tear down stack
+        if: always()
+        run: docker compose down

@@ -4,6 +4,7 @@ from dataclasses import asdict
 from typing import Mapping, Sequence
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from market_data.configuration import ScenarioSettings
 from market_data.models import TickEvent
@@ -26,8 +27,19 @@ def create_management_app(
     service: MarketDataService,
     feeds: Sequence[InstrumentFeed],
     scenarios: Mapping[str, ScenarioSettings],
+    *,
+    cors_origins: Sequence[str] | None = None,
 ) -> FastAPI:
     app = FastAPI(title="Market Data Management API", version="0.1.0")
+
+    origins = list(cors_origins or ["http://localhost:5173"])
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=origins,
+        allow_methods=["*"],
+        allow_headers=["*"],
+        allow_credentials=False,
+    )
 
     @app.get("/health")
     async def health() -> dict[str, object]:

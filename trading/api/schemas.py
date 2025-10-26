@@ -13,7 +13,6 @@ from trading.domain.models import (
 
 
 class OrderCreateRequest(BaseModel):
-    user_id: str
     instrument_id: str
     side: OrderSide
     quantity: int = Field(gt=0)
@@ -29,16 +28,16 @@ class OrderCreateRequest(BaseModel):
             raise ValueError("limit_price required for limit orders")
         return self
 
-    def to_domain_request(self) -> LimitOrderRequest | MarketOrderRequest:
+    def to_domain_request(self, user_id: str) -> LimitOrderRequest | MarketOrderRequest:
         if self.order_type is OrderType.MARKET:
             return MarketOrderRequest(
-                user_id=self.user_id,
+                user_id=user_id,
                 instrument_id=self.instrument_id,
                 side=self.side,
                 quantity=self.quantity,
             )
         return LimitOrderRequest(
-            user_id=self.user_id,
+            user_id=user_id,
             instrument_id=self.instrument_id,
             side=self.side,
             quantity=self.quantity,

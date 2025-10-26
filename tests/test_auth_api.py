@@ -18,6 +18,7 @@ from auth.constants import SESSION_COOKIE_NAME
 from auth.models import RegistrationRequest
 from tests.auth_stubs import StubAccount, StubSession, StubUser
 
+pytestmark = pytest.mark.integration
 
 @pytest.fixture
 def auth_config() -> AuthConfig:
@@ -130,3 +131,18 @@ async def test_logout_endpoint_clears_cookie(stub_dependencies, auth_config: Aut
 
     assert response.status_code == 204
     assert response.cookies.get(SESSION_COOKIE_NAME) is None
+
+
+@pytest.mark.asyncio
+async def test_session_endpoint_returns_current_user(stub_dependencies, auth_config: AuthConfig) -> None:
+    app = build_app(stub_dependencies, auth_config)
+    service = app.state.auth_service
+    session = await service.register_user(RegistrationRequest(email="karl@example.com", password="Sess!0nTest"))
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as client:
+        client.cookies.set(SESSION_COOKIE_NAME, session.token.value)
+        response = await client.get("/auth/session")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["user_id"] == session.user_id

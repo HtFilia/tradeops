@@ -47,8 +47,13 @@ services:
       POSTGRES_DSN: postgresql://postgres:postgres@postgres:5432/marketdata
       POSTGRES_SCHEMA: public
       MARKET_DATA_INTERVAL_SECONDS: "0.2"
+      MARKET_DATA_HTTP_HOST: 0.0.0.0
+      MARKET_DATA_HTTP_PORT: "8080"
+      MARKET_DATA_CORS_ORIGINS: http://localhost:5173
     volumes:
       - .:/app:ro
+    ports:
+      - "8080:8080"
 
   trading_agent:
     build: .
@@ -78,6 +83,39 @@ services:
       TRADING_MARKETDATA_STREAM: marketdata_stream
       TRADING_EXECUTION_STREAM: execution_stream
       TRADING_ORDER_STREAM: order_commands
+      TRADING_CORS_ORIGINS: http://localhost:5173
+      TRADING_SESSION_COOKIE_NAME: session_id
+      TRADING_SESSION_TTL_MINUTES: "60"
+    volumes:
+      - .:/app:ro
+
+  auth_service:
+    build: .
+    container_name: auth-service
+    command:
+      [
+        "uvicorn",
+        "auth.server:create_default_app",
+        "--factory",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8082",
+      ]
+    ports:
+      - "8082:8082"
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    environment:
+      AUTH_POSTGRES_DSN: postgresql://postgres:postgres@postgres:5432/marketdata
+      AUTH_POSTGRES_SCHEMA: public
+      AUTH_REDIS_URL: redis://redis:6379/0
+      AUTH_SESSION_TTL_MINUTES: "60"
+      AUTH_SECURE_COOKIES: "false"
+      AUTH_CORS_ORIGINS: http://localhost:5173
     volumes:
       - .:/app:ro
 

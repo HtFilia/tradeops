@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Sequence
 
 from fastapi import APIRouter, FastAPI, HTTPException, Request, Response, status
+from fastapi.middleware.cors import CORSMiddleware
 
 from auth.configuration import AuthConfig
 from auth.models import LoginRequest, RegistrationRequest, SessionResponse
@@ -17,6 +19,7 @@ def create_auth_app(
     account_repository: AccountRepository,
     session_store: SessionStore,
     config: AuthConfig,
+    cors_origins: Sequence[str] | None = None,
 ) -> FastAPI:
     """Return a configured FastAPI application for the Auth agent."""
     app = FastAPI(title="Auth & User Management Agent", version="0.1.0")
@@ -28,6 +31,14 @@ def create_auth_app(
     )
 
     app.state.auth_service = service  # type: ignore[attr-defined]
+    origins = list(cors_origins or ["http://localhost:5173"])
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=origins,
+        allow_methods=["*"],
+        allow_headers=["*"],
+        allow_credentials=True,
+    )
     router = APIRouter(prefix="/auth", tags=["auth"])
 
     @router.post(
@@ -65,6 +76,16 @@ def create_auth_app(
             await service.logout_user(SessionToken(value=raw_token))
         _clear_session_cookie(response, config)
         return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+    @router.get("/session", response_model=SessionResponse)
+    async def read_session(request: Request) -> SessionResponse:
+        raw_token = request.cookies.get(config.session_cookie_name)
+        if not raw_token:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+        session = await service.get_session(SessionToken(value=raw_token))
+        if session is None:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+        return SessionResponse(user_id=session.user_id, expires_at=session.expires_at)
 
     app.include_router(router)
     return app

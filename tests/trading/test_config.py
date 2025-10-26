@@ -5,6 +5,8 @@ import pytest
 
 from trading.config import TradingSettings
 
+pytestmark = pytest.mark.unit
+
 
 @pytest.mark.parametrize(
     ("env", "expectation"),
@@ -31,3 +33,12 @@ def test_settings_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     settings = TradingSettings.from_env()
     assert settings.order_stream == "order_commands"
     assert settings.marketdata_stream == "marketdata_stream"
+    assert settings.cors_origins == ["http://localhost:5173"]
+    assert settings.session_cookie_name == "session_id"
+    assert settings.session_ttl_minutes == 60
+
+
+def test_settings_parses_cors_origins(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("TRADING_CORS_ORIGINS", "http://localhost:3000, https://app.example.com")
+    settings = TradingSettings.from_env()
+    assert settings.cors_origins == ["http://localhost:3000", "https://app.example.com"]

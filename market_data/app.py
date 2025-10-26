@@ -5,10 +5,11 @@ import json
 import os
 from dataclasses import asdict
 from datetime import datetime, timezone
-from typing import Awaitable, Callable, Iterable, Sequence
+from typing import Awaitable, Callable, Iterable, Mapping, Sequence
 
 import asyncpg
 from redis.asyncio import Redis
+import uvicorn
 
 from market_data.configuration import (
     DealerQuoteSettings,
@@ -16,6 +17,7 @@ from market_data.configuration import (
     MarketDataConfig,
     OrderBookSettings,
     ScenarioSettings,
+    PRESET_SCENARIOS,
 )
 from market_data.persistence import (
     PostgresDealerQuoteRepository,
@@ -28,7 +30,8 @@ from market_data.publisher import (
     RedisTickPublisher,
 )
 from market_data.runner import MarketDataRunner
-from market_data.service import MarketDataService
+from market_data.service import MarketDataService, InstrumentFeed
+from market_data.management_api import create_management_app
 from common.logging import configure_structured_logging
 
 logger = configure_structured_logging("market_data.app")
@@ -121,7 +124,12 @@ def load_instrument_configs() -> Iterable[InstrumentConfig]:
     return [_build_instrument_config(entry) for entry in entries]
 
 
-async def create_market_data_service() -> tuple[MarketDataService, Callable[[], Awaitable[None]]]:
+async def create_market_data_service() -> tuple[
+    MarketDataService,
+    Sequence[InstrumentFeed],
+    Mapping[str, ScenarioSettings],
+    Callable[[], Awaitable[None]],
+]:
     redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
     postgres_dsn = os.getenv("POSTGRES_DSN", "postgresql://postgres:postgres@postgres:5432/marketdata")
     postgres_schema = os.getenv("POSTGRES_SCHEMA", "public")
@@ -151,6 +159,7 @@ async def create_market_data_service() -> tuple[MarketDataService, Callable[[], 
         )
 
     feeds = MarketDataConfig(instruments=instruments).build_feeds()
+    scenarios = PRESET_SCENARIOS
 
     service = MarketDataService(
         feeds=feeds,
@@ -172,7 +181,7 @@ async def create_market_data_service() -> tuple[MarketDataService, Callable[[], 
         await redis.close()
         await redis.wait_closed()
 
-    return service, cleanup
+    return service, feeds, scenarios, cleanup
 
 
 async def run() -> None:
@@ -180,16 +189,53 @@ async def run() -> None:
     log_level = os.getenv("MARKET_DATA_LOG_LEVEL")
     if log_level:
         logger.setLevel(log_level.upper())
-    service, cleanup = await create_market_data_service()
+    service, feeds, scenarios, cleanup = await create_market_data_service()
+    cors_origins_raw = os.getenv("MARKET_DATA_CORS_ORIGINS")
+    if cors_origins_raw:
+        cors_origins = [origin.strip() for origin in cors_origins_raw.split(",") if origin.strip()]
+    else:
+        cors_origins = ["http://localhost:5173"]
+
+    management_app = create_management_app(
+        service=service,
+        feeds=feeds,
+        scenarios=scenarios,
+        cors_origins=cors_origins,
+    )
+
+    http_host = os.getenv("MARKET_DATA_HTTP_HOST", "0.0.0.0")
+    http_port = int(os.getenv("MARKET_DATA_HTTP_PORT", "8080"))
+    server_config = uvicorn.Config(
+        app=management_app,
+        host=http_host,
+        port=http_port,
+        log_config=None,
+        access_log=False,
+    )
+    server = uvicorn.Server(server_config)
+
     runner = MarketDataRunner(service=service, interval_seconds=interval_seconds)
 
+    runner_task = asyncio.create_task(runner.run())
+    server_task = asyncio.create_task(server.serve())
+
     try:
-        await runner.run()
+        done, _ = await asyncio.wait(
+            {runner_task, server_task},
+            return_when=asyncio.FIRST_EXCEPTION,
+        )
+        for task in done:
+            task.result()
     except asyncio.CancelledError:
         raise
     except KeyboardInterrupt:
         logger.info("Received shutdown signal.")
     finally:
+        server.should_exit = True
+        for task in (runner_task, server_task):
+            if not task.done():
+                task.cancel()
+        await asyncio.gather(runner_task, server_task, return_exceptions=True)
         await cleanup()
 
 

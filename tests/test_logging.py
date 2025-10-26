@@ -3,7 +3,11 @@ from __future__ import annotations
 import json
 import logging
 
+import pytest
+
 from common.logging import StructuredLogFormatter, configure_structured_logging, get_logger, log_schema_fields
+
+pytestmark = pytest.mark.unit
 
 
 def test_configure_structured_logging_outputs_json(capfd) -> None:
