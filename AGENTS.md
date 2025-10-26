@@ -81,6 +81,16 @@ This prevents one slow component (like risk calcs) from stalling the rest (like 
 * Runner loop exists for CLI/daemon execution, and the test suite covers simulators, configuration wiring, persistence, publishers, and service orchestration.
 * Scenario controls (volatility scaling, drift shifts, halts, liquidity overrides) and additional instrument types (futures, swaps) are supported via env-supplied configs.
 
+**Dev tooling & automation**
+
+* Custom git hooks live in `.githooks`. Enable them via `git config core.hooksPath .githooks`.
+  * `pre-commit` runs `pytest` unless `SKIP_TEST_COMMIT=1` is set.
+  * `commit-msg` enforces `verb: title` + thorough explanation format (verbs: add/remove/refactor/change/revert/admin, max 80 chars per line, >=12 words in body).
+  * `post-commit` prints a summary and reminders after each commit.
+* GitHub Actions:
+  * `ci.yml` executes the pytest suite on pushes/PRs.
+  * `cd.yml` (pushes to `main`) repeats CI steps and performs a Docker build to validate the container image.
+
 **Local docker stack**
 
 * The repo ships with `docker-compose.yml`, a `Dockerfile`, and `docker/init/01_market_data.sql`. Run `docker compose up --build market_data` to start Redis, Postgres, and the market data agent together.
