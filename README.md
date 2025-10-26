@@ -68,15 +68,17 @@ git config core.hooksPath .githooks
 
 Hook responsibilities:
 
-* **pre-commit** – runs `pytest` to guard regressions. Set
-  `SKIP_TEST_COMMIT=1 git commit ...` to bypass in emergencies (the hook warns
-  when tests are skipped).
+* **pre-commit** – runs `pytest -m "not e2e"` and (when the frontend is
+  present) `npm run build`. Set `SKIP_TEST_COMMIT=1 git commit ...` to bypass in
+  emergencies (the hook warns when checks are skipped).
 * **commit-msg** – enforces the standard commit message format:
-  ```
+
+  ```text
   verb: concise title
   
   thorough explanation covering design choices, wrapped at 80 chars
   ```
+
   `verb` must be one of: add/remove/refactor/change/revert/admin. The detail
   section must start after a blank line, contain at least one non-empty line,
   and total at least 12 words. Every line (subject and body) must be ≤80 chars.
@@ -107,7 +109,7 @@ visibility or integration with external monitoring.
 
 ## Commit message template
 
-```
+```text
 verb: title
 
 Detailed explanation with multiple sentences explaining the change,
@@ -140,24 +142,30 @@ locally via Vite.
    * Market data management API – `http://localhost:8080`
    * Trading agent REST API – `http://localhost:8081`
    * Auth service – `http://localhost:8082`
+
    ```bash
    make stack-up        # or: docker compose up --build market_data trading_agent auth_service
    ```
+
 2. Install frontend dependencies and launch the dev server:
+
    ```bash
    cd frontend
    npm install
    npm run dev
    ```
+
    Vite serves the UI on `http://localhost:5173` (configurable via
    `VITE_DEV_PORT`). The page displays live market snapshots and an order form.
 3. To customise service endpoints, set the following environment variables
    before running the dev server:
+
    ```bash
    export VITE_MARKET_DATA_BASE_URL="http://localhost:8080"
    export VITE_TRADING_BASE_URL="http://localhost:8081"
    export VITE_AUTH_BASE_URL="http://localhost:8082"
    ```
+
 4. Hit `http://localhost:5173` and use the sign-in form. Registration is wired
    through the auth agent; newly created users receive starting balances defined
    by `AUTH_STARTING_BALANCE`. A demo account (`demo@example.com` / `demo`) is
@@ -177,7 +185,7 @@ when we instrument SPA interactions.
 
 ### Running the HTTP API
 
-```
+```bash
 uvicorn trading.app:create_default_app --factory --reload
 ```
 

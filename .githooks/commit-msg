@@ -54,4 +54,9 @@ if [[ $NON_EMPTY_COUNT -eq 0 ]]; then
   exit 1
 fi
 
+if [[ $WORD_COUNT -lt 12 ]]; then
+  echo "[commit-msg] Commit body must contain at least 12 words (currently $WORD_COUNT)." >&2
+  exit 1
+fi
+
 exit 0

@@ -7,15 +7,15 @@ from typing import Sequence
 import asyncpg
 from fastapi import FastAPI
 from redis.asyncio import Redis
-import logging
 
 from auth.app import create_auth_app
 from auth.configuration import AuthConfig
 from auth.session import RedisSessionStore
 from auth.storage import PostgresAccountRepository, PostgresUserRepository
 from auth.security import Argon2PasswordHasher
+from common.logging import configure_structured_logging
 
-logger = logging.getLogger("auth.server")
+logger = configure_structured_logging("auth.server")
 
 
 class _PoolProxy:
