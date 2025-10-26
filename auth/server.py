@@ -113,6 +113,7 @@ async def _ensure_default_user(
         user_id=user.id,
         starting_balance=config.starting_balance,
         currency=config.base_currency,
+        margin_allowed=False,
     )
     logger.info(
         "Seeded demo user",
@@ -140,7 +141,21 @@ async def _prepare_schema(pool: asyncpg.Pool, schema: str) -> None:
                 user_id UUID PRIMARY KEY REFERENCES {schema}.users (id) ON DELETE CASCADE,
                 cash_balance NUMERIC(18, 4) NOT NULL,
                 base_currency TEXT NOT NULL,
-                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                margin_allowed BOOLEAN NOT NULL DEFAULT FALSE,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+            """
+        )
+        await conn.execute(
+            f"""
+            CREATE TABLE IF NOT EXISTS {schema}.positions (
+                user_id UUID NOT NULL REFERENCES {schema}.users (id) ON DELETE CASCADE,
+                instrument_id TEXT NOT NULL,
+                quantity INTEGER NOT NULL,
+                average_price NUMERIC(18, 6) NOT NULL,
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                PRIMARY KEY (user_id, instrument_id)
             )
             """
         )

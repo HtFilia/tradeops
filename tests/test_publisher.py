@@ -12,9 +12,13 @@ from market_data.publisher import (
 class StubRedis:
     def __init__(self) -> None:
         self.calls: list[tuple[str, dict[str, str]]] = []
+        self.hashes: dict[str, dict[str, str]] = {}
 
     async def xadd(self, stream: str, payload: dict[str, str]) -> None:
         self.calls.append((stream, payload))
+
+    async def hset(self, key: str, mapping: dict[str, str]) -> None:
+        self.hashes[key] = mapping
 
 
 def make_tick() -> TickEvent:
@@ -69,6 +73,8 @@ def test_redis_order_book_publisher_serializes_snapshot() -> None:
     stream, payload = redis.calls[0]
     data = json.loads(payload["payload"])
     assert data["bids"][0]["quantity"] == 500
+    book_hash = redis.hashes["marketdata:book:EQ-BOOK"]
+    assert json.loads(book_hash["bids"])[0][1] == 500
 
 
 def test_redis_dealer_quote_publisher_serializes_quote() -> None:

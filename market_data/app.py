@@ -178,8 +178,7 @@ async def create_market_data_service() -> tuple[
             extra={"event": "market_data.shutdown"},
         )
         await pool.close()
-        await redis.close()
-        await redis.wait_closed()
+        await redis.aclose()
 
     return service, feeds, scenarios, cleanup
 

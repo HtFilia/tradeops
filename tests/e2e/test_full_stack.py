@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import os
 import pytest
 from httpx import AsyncClient
@@ -18,8 +19,27 @@ TRADING_URL = os.getenv("E2E_TRADING_URL", "http://localhost:8081")
 MARKET_URL = os.getenv("E2E_MARKET_URL", "http://localhost:8080")
 
 
+async def wait_for(url: str, *, expected_codes: set[int], timeout: float = 60.0, interval: float = 2.0) -> None:
+    start = asyncio.get_event_loop().time()
+    async with AsyncClient(timeout=5.0) as client:
+        while True:
+            try:
+                response = await client.get(url)
+                if response.status_code in expected_codes:
+                    return
+            except Exception:  # pragma: no cover - network startup race
+                pass
+            if asyncio.get_event_loop().time() - start >= timeout:
+                raise RuntimeError(f"Timeout waiting for {url} to return {expected_codes}")
+            await asyncio.sleep(interval)
+
+
 @pytest.mark.asyncio
 async def test_end_to_end_order_flow() -> None:
+    await wait_for(f"{AUTH_URL}/auth/session", expected_codes={200, 401})
+    await wait_for(f"{MARKET_URL}/health", expected_codes={200})
+    await wait_for(f"{TRADING_URL}/health", expected_codes={200})
+
     async with AsyncClient() as client:
         # Ensure auth responds and log in with demo credentials (seeded by startup)
         login_response = await client.post(

@@ -40,7 +40,7 @@ async def test_register_user_creates_account_and_issues_session(config: AuthConf
     assert created_user.password_hash.startswith("$argon2")
 
     assert account_repo.created_accounts == [
-        (created_user.id, Decimal("1000000"), "USD"),
+        (created_user.id, Decimal("1000000"), "USD", False),
     ]
     assert session.user_id == created_user.id
     assert session.token.value.startswith("session-")

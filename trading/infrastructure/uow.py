@@ -47,7 +47,7 @@ def _deserialize_order(record: asyncpg.Record) -> OrderRecord:
 
 def _deserialize_account(record: asyncpg.Record) -> AccountSnapshot:
     return AccountSnapshot(
-        user_id=record["user_id"],
+        user_id=str(record["user_id"]),
         cash_balance=record["cash_balance"],
         base_currency=record["base_currency"],
         margin_allowed=record["margin_allowed"],
@@ -57,7 +57,7 @@ def _deserialize_account(record: asyncpg.Record) -> AccountSnapshot:
 
 def _deserialize_position(record: asyncpg.Record) -> PositionRecord:
     return PositionRecord(
-        user_id=record["user_id"],
+        user_id=str(record["user_id"]),
         instrument_id=record["instrument_id"],
         quantity=record["quantity"],
         average_price=record["average_price"],

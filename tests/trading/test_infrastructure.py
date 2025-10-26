@@ -9,6 +9,8 @@ from trading.domain.exceptions import InstrumentNotFoundError
 from trading.domain.models import ExecutionEvent, OrderSide
 from trading.infrastructure.events import RedisExecutionPublisher
 from trading.infrastructure.market_data import RedisMarketDataGateway
+from trading.infrastructure.uow import _deserialize_account, _deserialize_position
+from uuid import UUID
 
 
 @pytest.mark.asyncio
@@ -62,3 +64,29 @@ async def test_redis_market_data_gateway_raises_when_missing() -> None:
     gateway = RedisMarketDataGateway(client=FakeRedis({}))
     with pytest.raises(InstrumentNotFoundError):
         await gateway.get_order_book("missing")
+
+
+def test_deserialize_account_handles_uuid_types() -> None:
+    now = datetime.now(tz=timezone.utc)
+    record = {
+        "user_id": UUID("ac32ccce-4238-441f-8381-1ca9151f088b"),
+        "cash_balance": 1000.0,
+        "base_currency": "USD",
+        "margin_allowed": False,
+        "updated_at": now,
+    }
+    snapshot = _deserialize_account(record)  # type: ignore[arg-type]
+    assert snapshot.user_id == "ac32ccce-4238-441f-8381-1ca9151f088b"
+
+
+def test_deserialize_position_handles_uuid_types() -> None:
+    now = datetime.now(tz=timezone.utc)
+    record = {
+        "user_id": UUID("ac32ccce-4238-441f-8381-1ca9151f088b"),
+        "instrument_id": "EQ-ACME",
+        "quantity": 10,
+        "average_price": 101.23,
+        "updated_at": now,
+    }
+    position = _deserialize_position(record)  # type: ignore[arg-type]
+    assert position.user_id == "ac32ccce-4238-441f-8381-1ca9151f088b"

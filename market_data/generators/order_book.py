@@ -51,10 +51,20 @@ class LadderOrderBookGenerator:
 
         for level in range(self._config.levels):
             price_offset = self._config.tick_size * (level + 1)
-            noise = self._rng.normalvariate(0.0, self._config.price_noise) if self._config.price_noise else 0.0
+            if self._config.price_noise:
+                cap = min(self._config.price_noise, self._config.tick_size * 0.45)
+                bid_noise = min(abs(self._rng.normalvariate(0.0, self._config.price_noise)), cap)
+                ask_noise = min(abs(self._rng.normalvariate(0.0, self._config.price_noise)), cap)
+            else:
+                bid_noise = 0.0
+                ask_noise = 0.0
 
-            bid_price = mid_price - price_offset - noise
-            ask_price = mid_price + price_offset + noise
+            bid_price = mid_price - price_offset - bid_noise
+            ask_price = mid_price + price_offset + ask_noise
+
+            # ensure spread strictly positive
+            if ask_price <= bid_price:
+                ask_price = bid_price + self._config.tick_size
 
             quantity = self._config.base_quantity * (self._config.quantity_decay ** level)
 

@@ -31,12 +31,31 @@ class RedisTickPublisher:
 class RedisOrderBookPublisher:
     """Publish order book snapshots onto a Redis Stream."""
 
-    def __init__(self, redis: Redis, stream_name: str = "orderbook_stream") -> None:
+    def __init__(
+        self,
+        redis: Redis,
+        stream_name: str = "orderbook_stream",
+        book_hash_prefix: str = "marketdata:book",
+    ) -> None:
         self._redis = redis
         self._stream_name = stream_name
+        self._book_hash_prefix = book_hash_prefix
 
     async def publish_order_book(self, snapshot: OrderBookSnapshot) -> None:
-        await self._redis.xadd(self._stream_name, {"payload": _serialize(snapshot)})
+        payload = _serialize(snapshot)
+        await self._redis.xadd(self._stream_name, {"payload": payload})
+
+        key = f"{self._book_hash_prefix}:{snapshot.instrument_id}"
+        bids = [(float(level.price), int(level.quantity)) for level in snapshot.bids]
+        asks = [(float(level.price), int(level.quantity)) for level in snapshot.asks]
+        await self._redis.hset(
+            key,
+            mapping={
+                "bids": json.dumps(bids),
+                "asks": json.dumps(asks),
+                "last_updated": snapshot.timestamp.isoformat(),
+            },
+        )
 
 
 class RedisDealerQuotePublisher:

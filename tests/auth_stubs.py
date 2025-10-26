@@ -35,13 +35,19 @@ class StubUser(UserRepository):
 
 @dataclass(slots=True)
 class StubAccount(AccountRepository):
-    created_accounts: list[tuple[str, Decimal, str]]
+    created_accounts: list[tuple[str, Decimal, str, bool]]
 
     def __init__(self) -> None:
         self.created_accounts = []
 
-    async def create_account(self, user_id: str, starting_balance: Decimal, currency: str) -> None:
-        self.created_accounts.append((user_id, starting_balance, currency))
+    async def create_account(
+        self,
+        user_id: str,
+        starting_balance: Decimal,
+        currency: str,
+        margin_allowed: bool = False,
+    ) -> None:
+        self.created_accounts.append((user_id, starting_balance, currency, margin_allowed))
 
 
 @dataclass(slots=True)

@@ -58,11 +58,13 @@ async def test_register_endpoint_returns_session_cookie(stub_dependencies, auth_
             json={"email": "frank@example.com", "password": "Val1dPass!"},
         )
 
-    assert response.status_code == 201
-    assert response.json()["user_id"].startswith("user-")
-    cookie_value = response.cookies.get(SESSION_COOKIE_NAME)
-    assert cookie_value is not None
-    assert cookie_value.startswith("session-")
+        assert response.status_code == 201
+        assert response.json()["user_id"].startswith("user-")
+        cookie_value = response.cookies.get(SESSION_COOKIE_NAME)
+        assert cookie_value is not None
+        assert cookie_value.startswith("session-")
+        created_accounts = stub_dependencies[1].created_accounts
+        assert created_accounts[0][-1] is False
 
 
 @pytest.mark.asyncio

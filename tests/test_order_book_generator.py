@@ -37,3 +37,22 @@ def test_ladder_order_book_generator_produces_sorted_levels() -> None:
     expected_quantities = [500.0, 300.0, 180.0]
     assert [round(level.quantity, 1) for level in bids] == expected_quantities
     assert [round(level.quantity, 1) for level in asks] == expected_quantities
+
+
+def test_ladder_order_book_generator_with_noise_preserves_spread() -> None:
+    generator = LadderOrderBookGenerator(
+        instrument_id="EQ-NOISE",
+        config=OrderBookDepthConfig(
+            levels=2,
+            tick_size=0.05,
+            base_quantity=100.0,
+            quantity_decay=0.5,
+            price_noise=0.2,
+        ),
+        seed=7,
+    )
+
+    snapshot = generator.build(mid_price=50.0, timestamp=datetime.now(tz=timezone.utc))
+
+    assert snapshot.bids[0].price < snapshot.asks[0].price
+    assert all(b.price < a.price for b, a in zip(snapshot.bids, snapshot.asks))
