@@ -1,8 +1,9 @@
-# Trading Board – Market Data Agent
+# TradeOps
 
-This repository implements the market data agent for the multi‑agent trading
-simulation stack. It generates synthetic prices, order books, and dealer quotes,
-publishes them to Redis streams, and persists canonical state in Postgres.
+TradeOps is a multi-agent trading operations platform with synthetic market
+data, order execution, authentication, persistent state, and a live React
+dashboard. It generates prices, order books, and dealer quotes, publishes them
+to Redis streams, and persists canonical state in Postgres.
 
 ## Local development
 
