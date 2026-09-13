@@ -43,11 +43,12 @@ async def test_orders_and_balances_survive_schema_preparation() -> None:
 
         now = datetime(2026, 1, 1, tzinfo=timezone.utc)
         publisher = AsyncMock()
+        order_ids = iter(["persisted-order", "rolled-back-order"])
         service = OrderService(
             uow_factory=lambda: AsyncpgTradingUnitOfWork(pool=pool),
             matching_engine=MatchingEngine(),
             execution_publisher=publisher,
-            id_generator=lambda: "persisted-order",
+            id_generator=lambda: next(order_ids),
             clock=lambda: now,
         )
         book = ListedInstrumentBook(
@@ -75,7 +76,6 @@ async def test_orders_and_balances_survive_schema_preparation() -> None:
 
         # A later failure must roll back all database writes in the unit of work.
         publisher.publish.side_effect = RuntimeError("publisher unavailable")
-        service._id_generator = lambda: "rolled-back-order"
         with pytest.raises(RuntimeError, match="publisher unavailable"):
             await service.submit(
                 MarketOrderRequest(

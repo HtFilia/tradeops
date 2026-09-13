@@ -9,7 +9,7 @@ from trading.domain.exceptions import InstrumentNotFoundError
 from trading.domain.models import ExecutionEvent, OrderSide
 from trading.infrastructure.events import RedisExecutionPublisher
 from trading.infrastructure.market_data import RedisMarketDataGateway
-from trading.infrastructure.uow import _deserialize_account, _deserialize_position
+from trading.infrastructure.uow import _deserialize_account, _deserialize_order, _deserialize_position
 from uuid import UUID
 
 
@@ -90,3 +90,24 @@ def test_deserialize_position_handles_uuid_types() -> None:
     }
     position = _deserialize_position(record)  # type: ignore[arg-type]
     assert position.user_id == "ac32ccce-4238-441f-8381-1ca9151f088b"
+
+
+def test_deserialize_order_handles_uuid_types() -> None:
+    now = datetime.now(tz=timezone.utc)
+    record = {
+        "order_id": "stored-order",
+        "user_id": UUID("ac32ccce-4238-441f-8381-1ca9151f088b"),
+        "instrument_id": "EQ-ACME",
+        "side": "BUY",
+        "order_type": "MARKET",
+        "quantity": 2,
+        "filled_quantity": 2,
+        "limit_price": None,
+        "average_price": 100.0,
+        "status": "FILLED",
+        "time_in_force": "GTC",
+        "created_at": now,
+        "updated_at": now,
+    }
+    order = _deserialize_order(record)  # type: ignore[arg-type]
+    assert order.user_id == "ac32ccce-4238-441f-8381-1ca9151f088b"
