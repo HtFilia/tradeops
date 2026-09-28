@@ -1,5 +1,7 @@
 # TradeOps
 
+![Project overview — Lucas Lebihan, Quantitative Engineer](docs/assets/project-header.png)
+
 TradeOps is a multi-agent trading operations platform with synthetic market
 data, order execution, authentication, persistent state, and a live React
 dashboard. It generates prices, order books, and dealer quotes, publishes them
