@@ -160,5 +160,25 @@ async def _prepare_schema(pool: asyncpg.Pool, schema: str) -> None:
             """
         )
 
+        await conn.execute(
+            f"""
+            CREATE TABLE IF NOT EXISTS {schema}.orders (
+                order_id TEXT PRIMARY KEY,
+                user_id UUID NOT NULL REFERENCES {schema}.users (id) ON DELETE CASCADE,
+                instrument_id TEXT NOT NULL,
+                side TEXT NOT NULL,
+                order_type TEXT NOT NULL,
+                quantity INTEGER NOT NULL,
+                filled_quantity INTEGER NOT NULL,
+                limit_price DOUBLE PRECISION,
+                average_price DOUBLE PRECISION,
+                status TEXT NOT NULL,
+                time_in_force TEXT,
+                created_at TIMESTAMPTZ NOT NULL,
+                updated_at TIMESTAMPTZ NOT NULL
+            )
+            """
+        )
+
 
 __all__ = ["create_default_app"]

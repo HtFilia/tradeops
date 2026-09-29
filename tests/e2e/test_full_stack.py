@@ -3,6 +3,9 @@ from __future__ import annotations
 import asyncio
 import os
 import pytest
+import asyncpg
+
+from auth.server import _prepare_schema
 from httpx import AsyncClient
 
 pytestmark = pytest.mark.e2e
@@ -73,6 +76,23 @@ async def test_end_to_end_order_flow() -> None:
         body = order_response.json()
         assert body["status"] in {"FILLED", "PARTIALLY_FILLED", "NEW"}
         assert body["instrument_id"] == order_payload["instrument_id"]
+
+        # Repeating startup schema preparation must preserve the submitted order.
+        pool = await asyncpg.create_pool(
+            os.getenv("E2E_POSTGRES_DSN", "postgresql://postgres:postgres@localhost:5432/marketdata")
+        )
+        try:
+            await _prepare_schema(pool, "public")
+            persisted = await pool.fetchrow(
+                "SELECT user_id::text AS user_id, instrument_id, quantity FROM orders WHERE order_id = $1",
+                body["order_id"],
+            )
+            assert persisted is not None
+            assert persisted["user_id"] == user_id
+            assert persisted["instrument_id"] == order_payload["instrument_id"]
+            assert persisted["quantity"] == order_payload["quantity"]
+        finally:
+            await pool.close()
 
         # Logout to ensure session revocation works
         logout_response = await client.post(f"{AUTH_URL}/auth/logout")
