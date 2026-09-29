@@ -240,3 +240,11 @@ The frontend also ships with `npm run build` for CI verification.
   tags are enforced by CI.
 * The CD workflow builds and publishes the Docker image using the release tag as
   the image version.
+
+## Database initialization
+
+The auth service prepares the shared users, accounts, positions and orders
+schema before accepting logins. Preparation is idempotent: restarting the stack
+keeps existing orders. The full-stack CI test submits an authenticated order,
+repeats schema preparation and verifies that the order remains in PostgreSQL.
+The market-data tables are initialized separately by `docker/init/`.
