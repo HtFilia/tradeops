@@ -2,10 +2,29 @@
 
 ![Project overview — Lucas Lebihan, Quantitative Engineer](docs/assets/project-header.png)
 
-TradeOps is a multi-agent trading operations platform with synthetic market
+TradeOps is a local trading simulation with synthetic market
 data, order execution, authentication, persistent state, and a live React
 dashboard. It generates prices, order books, and dealer quotes, publishes them
 to Redis streams, and persists canonical state in Postgres.
+
+## Start reviewing here
+
+Implemented workflow: seeded synthetic feeds → Redis streams and PostgreSQL →
+authenticated order submission → simulated fills → persisted orders/cash/positions.
+The React UI polls REST endpoints; a WebSocket gateway and portfolio/risk service
+remain planned. This is an educational local stack, with no real-money execution.
+
+- [Service boundaries and failure limits](docs/ARCHITECTURE.md).
+- [Order orchestration](trading/services/order_service.py) and
+  [full-stack order persistence test](tests/e2e/test_full_stack.py).
+- Quick scenario: follow **Frontend UI** below, sign in to the seeded local demo
+  account, buy one unit of a configured equity, inspect the returned order and
+  persisted row. Use the fixture instruments returned by the running feed.
+
+**Limits:** concurrent submissions for one account may overwrite balance updates.
+Execution publication occurs before the database transaction commits, so Redis
+and PostgreSQL can disagree after a failure. There is no transactional outbox or
+exactly-once guarantee. Do not use this demo to establish production consistency.
 
 ## Local development
 
@@ -92,11 +111,12 @@ Hook responsibilities:
 
 GitHub Actions workflows reside in `.github/workflows/`:
 
-* **ci.yml** – runs on pushes and pull requests. It checks out the repo,
-  installs dependencies, executes the unit/integration suite, and then invokes
-  `scripts/run_smoke.sh` to validate the docker-compose stack end-to-end.
-* **cd.yml** – runs on pushes to `main`. In addition to the CI steps, it builds
-  the Docker image to ensure the container artefact is healthy.
+* **ci.yml** – runs on pushes and pull requests. It executes the Python
+  unit/integration suite and frontend build, followed by separate Docker Compose
+  smoke and end-to-end jobs. The full-stack tests require running services.
+* **cd.yml** – runs on `release` / `release/**` pushes or manual dispatch. It
+  requires an exact version tag, builds the image, and publishes only when registry
+  credentials are configured. Unit and compose checks belong to CI.
 
 ## Operational API
 
@@ -238,8 +258,8 @@ The frontend also ships with `npm run build` for CI verification.
 * Each release commit must be tagged with the application version in the
   `x.y.z` or `x.y.z+flag` format (for example `1.2.0` or `1.2.0+hotfix`).
   tags are enforced by CI.
-* The CD workflow builds and publishes the Docker image using the release tag as
-  the image version.
+* The CD workflow builds the Docker image using the release tag as its version;
+  registry publication requires configured credentials.
 
 ## Database initialization
 

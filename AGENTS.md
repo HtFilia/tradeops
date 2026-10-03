@@ -14,6 +14,14 @@ This doc is the contract for contributors. If you add a feature, your PR should 
 
 ---
 
+## Implemented status and review boundary
+
+The responsibilities below include planned architecture. Current delivery comprises
+synthetic feeds, Redis/PostgreSQL adapters, auth, order submission/persistence and
+a polling React dashboard. Portfolio/risk and WebSocket gateway remain planned.
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for current failure boundaries;
+transactional event publication and concurrent account safety are not guaranteed.
+
 ## High-Level System Overview
 
 We are building a multi-asset trading simulation platform with:
@@ -94,8 +102,8 @@ This prevents one slow component (like risk calcs) from stalling the rest (like 
   * `make test`, `make docker-up`, `make docker-down`, and other targets wrap common routines.
   * `make smoke` invokes `scripts/run_smoke.sh` to run the docker-compose powered smoke suite locally.
 * GitHub Actions:
-  * `ci.yml` executes the pytest suite on pushes/PRs and runs the docker-compose smoke tests via `scripts/run_smoke.sh`.
-  * `cd.yml` (pushes to `main`) repeats CI steps and performs a Docker build to validate the container image.
+  * `ci.yml` runs Python unit/integration tests and the frontend build on pushes/PRs, followed by separate Docker Compose smoke and end-to-end jobs.
+  * `cd.yml` runs on `release` / `release/**` or manual dispatch, requires an exact version tag, builds the image and optionally pushes with registry credentials.
 
 **Local docker stack**
 
