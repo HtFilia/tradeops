@@ -32,6 +32,7 @@ const assert = require('node:assert/strict');
         status: 'PARTIALLY_FILLED', average_price: 5001}});
     });
     await page.goto(process.env.TRADEOPS_UI_URL ?? 'http://127.0.0.1:5173');
+    await page.getByRole('button',{name:'Existing account login / registration'}).click();
     const login = async () => {
       await page.getByLabel('Email', {exact:true}).fill('demo@example.com');
       await page.getByLabel('Password', {exact:true}).fill('demo');
