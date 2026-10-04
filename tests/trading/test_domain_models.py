@@ -152,3 +152,10 @@ def test_order_record_rejects_overfill() -> None:
             created_at=now,
             updated_at=now,
         )
+
+
+def test_demo_capability_does_not_equate_quotes_with_execution() -> None:
+    from trading.domain.capabilities import DEMO_INSTRUMENTS, quote_only
+    assert quote_only("FUT-ES") and quote_only("BOND-5Y")
+    assert not quote_only("EQ-ACME")
+    assert [c.instrument_id for c in DEMO_INSTRUMENTS if c.tradable] == ["EQ-ACME"]

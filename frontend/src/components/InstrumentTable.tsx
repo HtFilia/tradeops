@@ -1,8 +1,9 @@
 import { FC } from "react";
-import { InstrumentSnapshot } from "../lib/api";
+import { InstrumentSnapshot, InstrumentCapability } from "../lib/api";
 
 interface InstrumentTableProps {
   instruments: InstrumentSnapshot[];
+  capabilities: InstrumentCapability[];
   selectedInstrument: string;
   onSelect: (instrument: string) => void;
 }
@@ -25,7 +26,7 @@ const formatTime = (iso: string | undefined) => {
   return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 };
 
-export const InstrumentTable: FC<InstrumentTableProps> = ({ instruments, selectedInstrument, onSelect }) => {
+export const InstrumentTable: FC<InstrumentTableProps> = ({ instruments, selectedInstrument, onSelect, capabilities }) => {
   if (instruments.length === 0) {
     return (
       <div className="table-wrapper">
@@ -56,11 +57,13 @@ export const InstrumentTable: FC<InstrumentTableProps> = ({ instruments, selecte
           {instruments.map(({ instrumentId, lastTick }) => (
             <tr key={instrumentId}>
               <td><button className="button button--ghost" type="button"
+                disabled={!capabilities.some(item => item.instrument_id === instrumentId && item.tradable)}
+                title={capabilities.find(item => item.instrument_id === instrumentId)?.reason ?? "Execute synthetic equity"}
                 aria-label={`Trade ${instrumentId}`} aria-pressed={selectedInstrument === instrumentId}
-                onClick={() => onSelect(instrumentId)}>{instrumentId}</button></td>
-              <td>{formatNumber(lastTick?.mid, 4)}</td>
-              <td>{formatNumber(lastTick?.bid, 4)}</td>
-              <td>{formatNumber(lastTick?.ask, 4)}</td>
+                onClick={() => onSelect(instrumentId)}>{instrumentId}</button>{!capabilities.some(item => item.instrument_id === instrumentId && item.tradable) && <small> Quote-only</small>}</td>
+              <td>{instrumentId === "BOND-5Y" && lastTick ? `${(lastTick.mid * 100).toFixed(2)}%` : formatNumber(lastTick?.mid, 4)}</td>
+              <td>{instrumentId === "BOND-5Y" && lastTick ? `${(lastTick.bid * 100).toFixed(2)}%` : formatNumber(lastTick?.bid, 4)}</td>
+              <td>{instrumentId === "BOND-5Y" && lastTick ? `${(lastTick.ask * 100).toFixed(2)}%` : formatNumber(lastTick?.ask, 4)}</td>
               <td>{formatTime(lastTick?.timestamp)}</td>
             </tr>
           ))}

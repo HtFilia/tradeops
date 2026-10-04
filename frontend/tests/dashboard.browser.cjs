@@ -19,6 +19,10 @@ const assert = require('node:assert/strict');
       'EQ-ACME': {last_tick: {timestamp: '2024-01-02T14:30:00Z', bid: 99, ask: 101, mid: 100}},
       'FUT-ES': {last_tick: {timestamp: '2024-01-02T14:30:00Z', bid: 4999, ask: 5001, mid: 5000}}
     }}}));
+    await page.route('**/api/trading/instruments', route => route.fulfill({json: [
+      {instrument_id:'EQ-ACME', tradable:true, quote_unit:'currency_units'},
+      {instrument_id:'FUT-ES', tradable:false, quote_unit:'index_points', reason:'Quote-only'}
+    ]}));
     await page.route('**/api/trading/health', route => route.fulfill({json: {status: 'ok'}}));
     await page.route('**/api/trading/orders', route => {
       const payload = route.request().postDataJSON();
@@ -35,9 +39,10 @@ const assert = require('node:assert/strict');
       await page.getByLabel('Quantity', {exact:true}).waitFor();
     };
     await login();
-    await page.getByRole('button', {name:'Trade FUT-ES', exact:true}).focus({timeout: 3000});
+    assert(await page.getByRole('button', {name:'Trade FUT-ES', exact:true}).isDisabled());
+    await page.getByRole('button', {name:'Trade EQ-ACME', exact:true}).focus({timeout: 3000});
     await page.keyboard.press('Enter');
-    assert.equal(await page.getByLabel('Instrument', {exact:true}).inputValue(), 'FUT-ES');
+    assert.equal(await page.getByLabel('Instrument', {exact:true}).inputValue(), 'EQ-ACME');
     assert.equal(await page.getByLabel('User ID', {exact:true}).count(), 0);
     await page.getByLabel('Quantity', {exact:true}).fill('5');
     await page.getByRole('button', {name:'Submit order', exact:true}).click();
@@ -45,7 +50,7 @@ const assert = require('node:assert/strict');
     await activity.getByText('PARTIALLY_FILLED', {exact:true}).waitFor();
     assert((await activity.innerText()).includes('2 / 5'));
     assert((await activity.innerText()).includes('5001.0000'));
-    assert.equal(payloads[0].instrument_id, 'FUT-ES');
+    assert.equal(payloads[0].instrument_id, 'EQ-ACME');
     assert(!('user_id' in payloads[0]));
     await page.getByLabel('Quantity', {exact:true}).fill('13');
     await page.getByRole('button', {name:'Submit order', exact:true}).click();
