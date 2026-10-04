@@ -9,6 +9,7 @@ import asyncpg
 from fastapi import FastAPI
 from redis.asyncio import Redis
 
+from auth.demo import demo_router
 from auth.app import create_auth_app
 from auth.configuration import AuthConfig
 from auth.session import RedisSessionStore
@@ -44,14 +45,20 @@ def _parse_origins(raw: str | None, default: Sequence[str]) -> list[str]:
 def create_default_app() -> FastAPI:
     env = os.environ
     config = AuthConfig.from_env(env)
-    postgres_dsn = env.get("AUTH_POSTGRES_DSN", "postgresql://postgres:postgres@postgres:5432/marketdata")
+    postgres_dsn = env.get(
+        "AUTH_POSTGRES_DSN", "postgresql://postgres:postgres@postgres:5432/marketdata"
+    )
     postgres_schema = env.get("AUTH_POSTGRES_SCHEMA", "public")
     redis_url = env.get("AUTH_REDIS_URL", "redis://redis:6379/0")
-    cors_origins = _parse_origins(env.get("AUTH_CORS_ORIGINS"), ["http://localhost:5173"])
+    cors_origins = _parse_origins(
+        env.get("AUTH_CORS_ORIGINS"), ["http://localhost:5173"]
+    )
 
     pool_proxy = _PoolProxy()
     user_repository = PostgresUserRepository(pool=pool_proxy, schema=postgres_schema)
-    account_repository = PostgresAccountRepository(pool=pool_proxy, schema=postgres_schema)
+    account_repository = PostgresAccountRepository(
+        pool=pool_proxy, schema=postgres_schema
+    )
     redis_client = Redis.from_url(redis_url)
     session_store = RedisSessionStore(
         redis=redis_client,
@@ -65,6 +72,8 @@ def create_default_app() -> FastAPI:
         config=config,
         cors_origins=cors_origins,
     )
+
+    app.include_router(demo_router(pool_proxy, redis_client, config, cors_origins))
 
     password_hasher = Argon2PasswordHasher()
 
@@ -104,7 +113,9 @@ async def _ensure_default_user(
 ) -> None:
     existing = await user_repository.get_by_email(email)
     if existing is not None:
-        logger.info("Default demo user already exists", extra={"event": "auth.demo_user.exists"})
+        logger.info(
+            "Default demo user already exists", extra={"event": "auth.demo_user.exists"}
+        )
         return
 
     password_hash = password_hasher.hash(password)
@@ -121,64 +132,5 @@ async def _ensure_default_user(
     )
 
 
-async def _prepare_schema(pool: asyncpg.Pool, schema: str) -> None:
-    async with pool.acquire() as conn:
-        await conn.execute(f'CREATE SCHEMA IF NOT EXISTS "{schema}"')
-        await conn.execute('CREATE EXTENSION IF NOT EXISTS "pgcrypto"')
-        await conn.execute(
-            f"""
-            CREATE TABLE IF NOT EXISTS {schema}.users (
-                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                email TEXT NOT NULL UNIQUE,
-                password_hash TEXT NOT NULL,
-                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-            )
-            """
-        )
-        await conn.execute(
-            f"""
-            CREATE TABLE IF NOT EXISTS {schema}.accounts (
-                user_id UUID PRIMARY KEY REFERENCES {schema}.users (id) ON DELETE CASCADE,
-                cash_balance NUMERIC(18, 4) NOT NULL,
-                base_currency TEXT NOT NULL,
-                margin_allowed BOOLEAN NOT NULL DEFAULT FALSE,
-                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-            )
-            """
-        )
-        await conn.execute(
-            f"""
-            CREATE TABLE IF NOT EXISTS {schema}.positions (
-                user_id UUID NOT NULL REFERENCES {schema}.users (id) ON DELETE CASCADE,
-                instrument_id TEXT NOT NULL,
-                quantity INTEGER NOT NULL,
-                average_price NUMERIC(18, 6) NOT NULL,
-                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                PRIMARY KEY (user_id, instrument_id)
-            )
-            """
-        )
-
-        await conn.execute(
-            f"""
-            CREATE TABLE IF NOT EXISTS {schema}.orders (
-                order_id TEXT PRIMARY KEY,
-                user_id UUID NOT NULL REFERENCES {schema}.users (id) ON DELETE CASCADE,
-                instrument_id TEXT NOT NULL,
-                side TEXT NOT NULL,
-                order_type TEXT NOT NULL,
-                quantity INTEGER NOT NULL,
-                filled_quantity INTEGER NOT NULL,
-                limit_price DOUBLE PRECISION,
-                average_price DOUBLE PRECISION,
-                status TEXT NOT NULL,
-                time_in_force TEXT,
-                created_at TIMESTAMPTZ NOT NULL,
-                updated_at TIMESTAMPTZ NOT NULL
-            )
-            """
-        )
-
-
-__all__ = ["create_default_app"]
+# Compatibility import for existing tools and callers.
+from common.schema import prepare_schema as _prepare_schema

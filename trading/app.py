@@ -13,6 +13,10 @@ from common.logging import configure_structured_logging
 from auth.models import AuthenticatedSession
 from auth.session import RedisSessionStore, SessionToken
 
+from trading.api.demo import demo_router
+from trading.services.demo_service import DemoService
+from common.schema import prepare_schema
+from common.demo_limits import throttle
 from trading.api.schemas import OrderCreateRequest, OrderResponse
 from trading.config import TradingSettings, load_settings
 from trading.domain.exceptions import (
@@ -21,7 +25,11 @@ from trading.domain.exceptions import (
     InstrumentNotFoundError,
     OrderValidationError,
 )
-from trading.domain.capabilities import DEMO_INSTRUMENTS, InstrumentCapability, quote_only
+from trading.domain.capabilities import (
+    DEMO_INSTRUMENTS,
+    InstrumentCapability,
+    quote_only,
+)
 from trading.domain.matching import MatchingEngine
 from trading.infrastructure.events import RedisExecutionPublisher
 from trading.infrastructure.market_data import RedisMarketDataGateway
@@ -61,7 +69,9 @@ def create_app(
 
     if session_resolver is None:
 
-        async def _missing_session_resolver(_: Request) -> AuthenticatedSession:  # pragma: no cover - defensive guard
+        async def _missing_session_resolver(
+            _: Request,
+        ) -> AuthenticatedSession:  # pragma: no cover - defensive guard
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Session resolver not configured",
@@ -76,7 +86,9 @@ def create_app(
     async def instruments() -> list[InstrumentCapability]:
         return DEMO_INSTRUMENTS
 
-    @app.post("/orders", response_model=OrderResponse, status_code=status.HTTP_201_CREATED)
+    @app.post(
+        "/orders", response_model=OrderResponse, status_code=status.HTTP_201_CREATED
+    )
     async def create_order_endpoint(
         request: OrderCreateRequest,
         service: OrderService = Depends(get_order_service),
@@ -84,18 +96,31 @@ def create_app(
         session: AuthenticatedSession = Depends(get_current_session),
     ) -> OrderResponse:
         if quote_only(request.instrument_id):
-            raise HTTPException(status_code=422, detail="This instrument is quote-only; execution is not implemented.")
+            raise HTTPException(
+                status_code=422,
+                detail="This instrument is quote-only; execution is not implemented.",
+            )
         try:
             order_book = await data_gateway.get_order_book(request.instrument_id)
-            order = await service.submit(request.to_domain_request(session.user_id), order_book)
+            order = await service.submit(
+                request.to_domain_request(session.user_id), order_book
+            )
         except InstrumentNotFoundError:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="instrument not found") from None
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="instrument not found"
+            ) from None
         except InsufficientBalanceError as exc:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+            ) from exc
         except InsufficientPositionError as exc:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+            ) from exc
         except OrderValidationError as exc:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+            ) from exc
         response = OrderResponse.from_domain(order)
         logger.info(
             "Order created successfully",
@@ -163,6 +188,7 @@ def create_default_app(settings: TradingSettings | None = None) -> FastAPI:
     async def on_startup() -> None:
         nonlocal pool, redis_client, order_service, market_data_provider, session_store
         pool = await asyncpg.create_pool(dsn=resolved_settings.postgres_dsn)
+        await prepare_schema(pool, "public")
         redis_client = Redis.from_url(resolved_settings.redis_url)
         execution_publisher = RedisExecutionPublisher(
             client=redis_client,
@@ -203,11 +229,42 @@ def create_default_app(settings: TradingSettings | None = None) -> FastAPI:
             await redis_client.aclose()
         logger.info("Trading agent shut down", extra={"event": "trading.app.shutdown"})
 
+    async def demo_owner(request: Request) -> str:
+        token = request.cookies.get(resolved_settings.session_cookie_name)
+        session = (
+            await session_store.get(SessionToken(token))
+            if token and session_store
+            else None
+        )
+        if session is None:
+            raise HTTPException(
+                401, "Demo session missing or expired. Start a new simulation."
+            )
+        return session.user_id
+
+    def demo_service() -> DemoService:
+        if pool is None:
+            raise HTTPException(503, "Demo service starting")
+        return DemoService(pool)
+
+    async def reset_guard(request: Request) -> None:
+        if redis_client is None:
+            raise HTTPException(503, "Demo service starting")
+        await throttle(redis_client, request, "reset", 10)
+
+    app.include_router(
+        demo_router(
+            demo_service, demo_owner, reset_guard, resolved_settings.cors_origins
+        )
+    )
+
     @app.get("/instruments", response_model=list[InstrumentCapability])
     async def instruments() -> list[InstrumentCapability]:
         return DEMO_INSTRUMENTS
 
-    @app.post("/orders", response_model=OrderResponse, status_code=status.HTTP_201_CREATED)
+    @app.post(
+        "/orders", response_model=OrderResponse, status_code=status.HTTP_201_CREATED
+    )
     async def create_order_endpoint(
         http_request: Request,
         request: OrderCreateRequest,
@@ -221,23 +278,51 @@ def create_default_app(settings: TradingSettings | None = None) -> FastAPI:
             )
         token_value = http_request.cookies.get(resolved_settings.session_cookie_name)
         if not token_value:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Authentication required",
+            )
         session = await session_store.get(SessionToken(token_value))
         if session is None:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Authentication required",
+            )
+        if pool is not None:
+            async with pool.acquire() as conn:
+                if await conn.fetchval(
+                    "SELECT EXISTS(SELECT 1 FROM users WHERE id=$1 AND principal_kind='guest')",
+                    session.user_id,
+                ):
+                    raise HTTPException(
+                        409, "Guest accounts use the bounded /demo/orders route"
+                    )
         if quote_only(request.instrument_id):
-            raise HTTPException(status_code=422, detail="This instrument is quote-only; execution is not implemented.")
+            raise HTTPException(
+                status_code=422,
+                detail="This instrument is quote-only; execution is not implemented.",
+            )
         try:
             order_book = await data_gateway.get_order_book(request.instrument_id)
-            order = await service.submit(request.to_domain_request(session.user_id), order_book)
+            order = await service.submit(
+                request.to_domain_request(session.user_id), order_book
+            )
         except InstrumentNotFoundError:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="instrument not found") from None
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="instrument not found"
+            ) from None
         except InsufficientBalanceError as exc:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+            ) from exc
         except InsufficientPositionError as exc:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+            ) from exc
         except OrderValidationError as exc:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+            ) from exc
         response = OrderResponse.from_domain(order)
         logger.info(
             "Order created successfully",

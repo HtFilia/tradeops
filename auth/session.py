@@ -27,16 +27,13 @@ class SessionStore(ABC):
     """Abstract base class for issuing and managing authenticated sessions."""
 
     @abstractmethod
-    async def issue(self, user_id: str) -> AuthenticatedSession:
-        ...
+    async def issue(self, user_id: str) -> AuthenticatedSession: ...
 
     @abstractmethod
-    async def get(self, token: SessionToken) -> AuthenticatedSession | None:
-        ...
+    async def get(self, token: SessionToken) -> AuthenticatedSession | None: ...
 
     @abstractmethod
-    async def revoke(self, token: SessionToken) -> None:
-        ...
+    async def revoke(self, token: SessionToken) -> None: ...
 
 
 class RedisSessionStore(SessionStore):
@@ -50,12 +47,27 @@ class RedisSessionStore(SessionStore):
         self._redis = redis
         self._ttl = ttl
 
-    async def issue(self, user_id: str) -> AuthenticatedSession:
+    async def issue(
+        self, user_id: str, *, principal_kind: str = "registered"
+    ) -> AuthenticatedSession:
         token = SessionToken(value=uuid4().hex)
         expires_at = datetime.now(timezone.utc) + self._ttl
-        payload = json.dumps({"user_id": user_id, "expires_at": expires_at.isoformat()})
-        await self._redis.setex(self._key(token), int(self._ttl.total_seconds()), payload)
-        return AuthenticatedSession(token=token, user_id=user_id, expires_at=expires_at)
+        payload = json.dumps(
+            {
+                "user_id": user_id,
+                "expires_at": expires_at.isoformat(),
+                "principal_kind": principal_kind,
+            }
+        )
+        await self._redis.setex(
+            self._key(token), int(self._ttl.total_seconds()), payload
+        )
+        return AuthenticatedSession(
+            token=token,
+            user_id=user_id,
+            expires_at=expires_at,
+            principal_kind=principal_kind,
+        )
 
     async def get(self, token: SessionToken) -> AuthenticatedSession | None:
         raw = await self._redis.get(self._key(token))
@@ -67,6 +79,7 @@ class RedisSessionStore(SessionStore):
             token=token,
             user_id=document["user_id"],
             expires_at=expires_at,
+            principal_kind=document.get("principal_kind", "registered"),
         )
 
     async def revoke(self, token: SessionToken) -> None:

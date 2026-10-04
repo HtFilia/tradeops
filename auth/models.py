@@ -43,6 +43,7 @@ class LoginRequest(BaseModel):
 class SessionResponse(BaseModel):
     user_id: str
     expires_at: datetime
+    principal_kind: str = "registered"
 
 
 @dataclass(slots=True)
@@ -51,6 +52,7 @@ class User:
     email: str
     password_hash: str
     created_at: datetime
+    principal_kind: str = "registered"
 
 
 @dataclass(slots=True)
@@ -58,6 +60,7 @@ class AuthenticatedSession:
     token: "SessionToken"
     user_id: str
     expires_at: datetime
+    principal_kind: str = "registered"
 
 
 __all__ = [

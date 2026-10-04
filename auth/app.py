@@ -46,14 +46,22 @@ def create_auth_app(
         response_model=SessionResponse,
         status_code=status.HTTP_201_CREATED,
     )
-    async def register_user(request: RegistrationRequest, response: Response) -> SessionResponse:
+    async def register_user(
+        request: RegistrationRequest, response: Response
+    ) -> SessionResponse:
         try:
             session = await service.register_user(request)
         except UserAlreadyExistsError:
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered") from None
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT, detail="Email already registered"
+            ) from None
 
         _set_session_cookie(response, session.token, session.expires_at, config)
-        return SessionResponse(user_id=session.user_id, expires_at=session.expires_at)
+        return SessionResponse(
+            user_id=session.user_id,
+            expires_at=session.expires_at,
+            principal_kind=session.principal_kind,
+        )
 
     @router.post(
         "/login",
@@ -64,10 +72,16 @@ def create_auth_app(
         try:
             session = await service.login_user(request)
         except InvalidCredentialsError:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials") from None
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials"
+            ) from None
 
         _set_session_cookie(response, session.token, session.expires_at, config)
-        return SessionResponse(user_id=session.user_id, expires_at=session.expires_at)
+        return SessionResponse(
+            user_id=session.user_id,
+            expires_at=session.expires_at,
+            principal_kind=session.principal_kind,
+        )
 
     @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
     async def logout_user(request: Request, response: Response) -> Response:
@@ -75,17 +89,26 @@ def create_auth_app(
         if raw_token:
             await service.logout_user(SessionToken(value=raw_token))
         _clear_session_cookie(response, config)
-        return Response(status_code=status.HTTP_204_NO_CONTENT)
+        response.status_code = status.HTTP_204_NO_CONTENT
+        return response
 
     @router.get("/session", response_model=SessionResponse)
     async def read_session(request: Request) -> SessionResponse:
         raw_token = request.cookies.get(config.session_cookie_name)
         if not raw_token:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated"
+            )
         session = await service.get_session(SessionToken(value=raw_token))
         if session is None:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
-        return SessionResponse(user_id=session.user_id, expires_at=session.expires_at)
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated"
+            )
+        return SessionResponse(
+            user_id=session.user_id,
+            expires_at=session.expires_at,
+            principal_kind=session.principal_kind,
+        )
 
     app.include_router(router)
     return app
