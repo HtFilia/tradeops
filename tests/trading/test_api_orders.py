@@ -115,3 +115,49 @@ async def test_create_order_requires_session() -> None:
         )
 
     assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_default_equity_remains_tradable_after_four_simulated_hours() -> None:
+    from market_data.app import DEFAULT_INSTRUMENTS
+
+    config = next(item for item in DEFAULT_INSTRUMENTS if item.instrument_id == "EQ-ACME")
+    feed = config.build_feed()
+    steps = int(4 * 60 * 60 / (config.update_interval_ms / 1000))
+    for _ in range(steps):
+        mid = feed.simulator.next_value()
+    assert feed.order_book_generator is not None
+    timestamp = datetime(2026, 10, 4, 14, 0, tzinfo=timezone.utc)
+    snapshot = feed.order_book_generator.build(mid, timestamp)
+    book = ListedInstrumentBook(
+        instrument_id=config.instrument_id,
+        bids=[(level.price, int(level.quantity)) for level in snapshot.bids],
+        asks=[(level.price, int(level.quantity)) for level in snapshot.asks],
+        last_updated=timestamp,
+    )
+    uow = InMemoryTradingUnitOfWork()
+    account = uow.accounts.store["user-123"]
+    uow.accounts.store["user-123"] = account.model_copy(update={"cash_balance": 100_000.0})
+    publisher = InMemoryExecutionPublisher(published=[])
+    service = OrderService(
+        uow_factory=lambda: uow, matching_engine=MatchingEngine(),
+        execution_publisher=publisher, id_generator=lambda: "four-hour-order",
+        clock=lambda: timestamp,
+    )
+
+    async def session(_: Request) -> AuthenticatedSession:
+        return AuthenticatedSession(token=SessionToken("test"), user_id="user-123", expires_at=timestamp)
+
+    app = create_app(order_service=service, market_data_gateway=StaticMarketDataGateway(book),
+                     session_resolver=session, cors_origins=["http://test"])
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post("/orders", json={
+            "instrument_id": config.instrument_id, "side": "BUY", "quantity": 1,
+            "order_type": "MARKET",
+        })
+    assert response.status_code == 201, response.text
+    assert response.json()["status"] == "FILLED"
+    assert response.json()["filled_quantity"] == 1
+    assert uow.accounts.store["user-123"].cash_balance == pytest.approx(100_000 - snapshot.asks[0].price)
+    assert uow.positions.store[("user-123", config.instrument_id)].quantity == 1
+    assert publisher.published[0].price == snapshot.asks[0].price

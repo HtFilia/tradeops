@@ -214,6 +214,16 @@ node tests/dashboard.browser.cjs # run from frontend/
 All UI interactions emit JSON logs that match `logging.schema.json`, keeping the
 schema consistent with backend services.
 
+The built-in equity/futures GBM feeds use annual synthetic drift/volatility
+(5%/20% and 1%/18%), converted to the simulator's seconds convention with a
+365-day calendar year. They advance by their configured 0.5/0.25-second feed
+steps. This prevents annual-sized shocks on each subsecond quote. Simulation
+time advances per generated tick; scheduling delays do not imply exact elapsed
+wall-clock time. Custom `MARKET_DATA_INSTRUMENTS` configurations and scenario
+drift shifts keep the existing per-second drift and per-square-root-second
+volatility convention; rate-feed parameters are also unchanged. These are
+educational processes, not calibrated market forecasts or guaranteed price bounds.
+
 ## Structured Logging
 
 All services emit JSON logs that follow `logging.schema.json`. The helper in
