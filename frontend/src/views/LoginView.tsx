@@ -66,7 +66,7 @@ export function LoginView(): JSX.Element {
               autoComplete={mode === "login" ? "current-password" : "new-password"}
               value={form.password}
               onChange={(event) => setForm((prev) => ({ ...prev, password: event.target.value }))}
-              minLength={8}
+              minLength={mode === "register" ? 8 : 1}
               required
             />
           </div>
