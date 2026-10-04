@@ -194,6 +194,23 @@ locally via Vite.
    by `AUTH_STARTING_BALANCE`. A demo account (`demo@example.com` / `demo`) is
    seeded automatically for quick testing.
 
+Select an instrument in **Market pulse** (or in the order form), choose a side
+and quantity, then submit a simulated market or limit order. **Order activity**
+shows the last ten server submission receipts, including actual filled quantity,
+status and average fill price. It clears on refresh/logout and does not poll
+historical or working orders. Portfolio/risk views remain planned. Identity comes
+from the authenticated session; there is no editable user ID in the order form.
+
+`npm run build` runs receipt unit tests and TypeScript checks before Vite. An
+optional browser integration check uses mocked APIs to exercise instrument
+selection, partial fills and logout reset; it requires Playwright and a running
+Vite server configured with the same-origin `/api/market`, `/api/trading` and
+empty auth bases:
+
+```bash
+node tests/dashboard.browser.cjs # run from frontend/
+```
+
 All UI interactions emit JSON logs that match `logging.schema.json`, keeping the
 schema consistent with backend services.
 
