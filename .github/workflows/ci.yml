@@ -41,6 +41,36 @@ jobs:
           npm ci
           npm run build
 
+  demo_transactions:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: demo_test
+          POSTGRES_PASSWORD: postgres
+        ports: ["18543:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d demo_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:8-alpine
+        ports: ["18579:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - run: python -m pytest tests/demo -q
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+          DEMO_TEST_POSTGRES_DSN: postgresql://postgres:postgres@127.0.0.1:18543/demo_test
+          DEMO_TEST_REDIS_URL: redis://127.0.0.1:18579/12
+
   smoke:
     needs: unit_and_integration
     runs-on: ubuntu-latest

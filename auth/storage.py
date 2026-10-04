@@ -9,32 +9,30 @@ from typing import Any, Protocol, TYPE_CHECKING
 from auth.models import User
 
 if TYPE_CHECKING:
-    import asyncpg
+    pass
 
 
 class SupportsAcquire(Protocol):
-    def acquire(self) -> Any:
-        ...
+    def acquire(self) -> Any: ...
 
 
 class UserRepository(ABC):
     """Abstract repository interface for user records."""
 
     @abstractmethod
-    async def get_by_email(self, email: str) -> User | None:
-        ...
+    async def get_by_email(self, email: str) -> User | None: ...
 
     @abstractmethod
-    async def create(self, email: str, password_hash: str) -> User:
-        ...
+    async def create(self, email: str, password_hash: str) -> User: ...
 
 
 class AccountRepository(ABC):
     """Abstract repository interface for account rows."""
 
     @abstractmethod
-    async def create_account(self, user_id: str, starting_balance: Decimal, currency: str) -> None:
-        ...
+    async def create_account(
+        self, user_id: str, starting_balance: Decimal, currency: str
+    ) -> None: ...
 
 
 @dataclass(slots=True)
@@ -44,7 +42,7 @@ class PostgresUserRepository(UserRepository):
 
     async def get_by_email(self, email: str) -> User | None:
         query = f"""
-        SELECT id, email, password_hash, created_at
+        SELECT id, email, password_hash, created_at, principal_kind
         FROM {self.schema}.users
         WHERE email = $1
         """
@@ -64,6 +62,7 @@ class PostgresUserRepository(UserRepository):
             email=row["email"],
             password_hash=row["password_hash"],
             created_at=created_at_dt,
+            principal_kind=row["principal_kind"],
         )
 
     async def create(self, email: str, password_hash: str) -> User:
@@ -118,7 +117,15 @@ class PostgresAccountRepository(AccountRepository):
         created = created_at or now
         updated = updated_at or now
         async with self.pool.acquire() as conn:  # type: ignore[attr-defined]
-            await conn.execute(query, user_id, starting_balance, currency, margin_allowed, created, updated)
+            await conn.execute(
+                query,
+                user_id,
+                starting_balance,
+                currency,
+                margin_allowed,
+                created,
+                updated,
+            )
 
 
 __all__ = [

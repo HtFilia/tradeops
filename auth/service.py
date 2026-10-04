@@ -54,7 +54,11 @@ class AuthService:
 
     async def login_user(self, request: LoginRequest) -> AuthenticatedSession:
         user = await self._user_repository.get_by_email(request.email)
-        if user is None or not self._password_hasher.verify(user.password_hash, request.password):
+        if (
+            user is None
+            or user.principal_kind != "registered"
+            or not self._password_hasher.verify(user.password_hash, request.password)
+        ):
             raise InvalidCredentialsError("Invalid credentials")
         return await self._session_store.issue(user.id)
 
