@@ -2,8 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { InstrumentTable } from "./components/InstrumentTable";
 import { OrderForm } from "./components/OrderForm";
 import { StatusBadge } from "./components/StatusBadge";
-import { ModuleCard } from "./components/ModuleCard";
 import {
+  fetchCapabilities,
+  InstrumentCapability,
   OrderPayload,
   OrderResponseBody,
   fetchMarketHealth,
@@ -26,6 +27,7 @@ function Dashboard(): JSX.Element {
   const { user, status, logout } = useAuth();
   const [marketStatus, setMarketStatus] = useState<StatusState>("idle");
   const [tradingStatus, setTradingStatus] = useState<StatusState>("idle");
+  const [capabilities, setCapabilities] = useState<InstrumentCapability[]>([]);
   const [instruments, setInstruments] = useState<InstrumentSnapshot[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [selectedInstrument, setSelectedInstrument] = useState("EQ-ACME");
@@ -42,7 +44,8 @@ function Dashboard(): JSX.Element {
       return;
     }
     try {
-      const snapshots = await fetchMarketHealth();
+      const [snapshots, caps] = await Promise.all([fetchMarketHealth(), fetchCapabilities()]);
+      setCapabilities(caps);
       setInstruments(snapshots);
       setMarketStatus("ok");
     } catch (error) {
@@ -132,13 +135,13 @@ function Dashboard(): JSX.Element {
     <div className="app-shell">
       <header className="header">
         <div>
-          <h1 className="header__title">Trading Board</h1>
+          <h1 className="header__title">TradeOps</h1>
           <p className="header__subtitle">
             Select a synthetic instrument, submit a simulated order, and inspect its fill receipt. No real money.
           </p>
         </div>
         <div className="header-actions">
-          <span className="header-actions__user">{user.user_id}</span>
+          <a href="https://lucaslebihan.dev/en/">Portfolio</a> <a href="https://github.com/HtFilia/tradeops/blob/master/trading/domain/matching.py">Matching source</a>
           <button className="button button--ghost" type="button" onClick={() => logout()}>
             Log out
           </button>
@@ -161,7 +164,7 @@ function Dashboard(): JSX.Element {
             <StatusBadge status={marketStatus} label={marketStatusLabel} />
           </div>
           <InstrumentTable instruments={instruments} selectedInstrument={selectedInstrument}
-            onSelect={setSelectedInstrument} />
+            onSelect={setSelectedInstrument} capabilities={capabilities} />
         </article>
 
         <article className="panel">
@@ -178,7 +181,7 @@ function Dashboard(): JSX.Element {
             <StatusBadge status={tradingStatus} label={tradingStatusLabel} />
           </div>
           <OrderForm onSubmit={handleOrderSubmit} submitting={submitting} feedback={feedback}
-            selectedInstrument={selectedInstrument} instruments={instruments.map(item => item.instrumentId)}
+            selectedInstrument={selectedInstrument} instruments={capabilities.filter(item => item.tradable).map(item => item.instrument_id)}
             onInstrumentChange={setSelectedInstrument} />
         </article>
       </section>
@@ -201,18 +204,7 @@ function Dashboard(): JSX.Element {
             </table>
           </div>}
       </section>
-      <section className="module-grid">
-        <ModuleCard
-          title="Portfolio overview"
-          description="Positions, P&L, and NAV snapshots will live here once the portfolio & risk agent comes online."
-          badge="Coming soon"
-        />
-        <ModuleCard
-          title="Risk & analytics"
-          description="Delta, DV01, and scenario tools will plug into this workspace in later milestones."
-          badge="Planned"
-        />
-      </section>
+
     </div>
   );
 }

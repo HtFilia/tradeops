@@ -161,3 +161,21 @@ async def test_default_equity_remains_tradable_after_four_simulated_hours() -> N
     assert uow.accounts.store["user-123"].cash_balance == pytest.approx(100_000 - snapshot.asks[0].price)
     assert uow.positions.store[("user-123", config.instrument_id)].quantity == 1
     assert publisher.published[0].price == snapshot.asks[0].price
+
+
+@pytest.mark.asyncio
+async def test_quote_only_instruments_are_not_advertised_or_accepted_for_trading() -> None:
+    app, _ = build_app()
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/instruments")
+        assert response.status_code == 200
+        capabilities = {row["instrument_id"]: row for row in response.json()}
+        assert capabilities["EQ-ACME"]["order_types"] == ["MARKET", "LIMIT"]
+        assert capabilities["BOND-5Y"]["quote_unit"] == "annual_decimal_rate"
+        for symbol in ["BOND-5Y", "FUT-ES"]:
+            assert not capabilities[symbol]["tradable"]
+            rejected = await client.post("/orders", json={
+                "instrument_id": symbol, "side": "BUY", "quantity": 1, "order_type": "MARKET",
+            })
+            assert rejected.status_code == 422
+            assert "quote-only" in rejected.json()["detail"]

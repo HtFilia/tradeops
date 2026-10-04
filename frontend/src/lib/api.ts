@@ -159,3 +159,8 @@ export const apiConfig = {
   tradingBaseUrl,
   authBaseUrl
 };
+
+export interface InstrumentCapability {instrument_id: string; display_name: string; tradable: boolean; quote_unit: string; order_types: string[]; reason: string | null}
+export async function fetchCapabilities(): Promise<InstrumentCapability[]> {
+  return request<InstrumentCapability[]>(buildUrl(tradingBaseUrl, "/instruments"));
+}

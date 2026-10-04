@@ -40,9 +40,9 @@ export function LoginView(): JSX.Element {
     <div className="auth-shell">
       <div className="auth-panel">
         <header className="auth-header">
-          <h1>Trading Board</h1>
+          <h1>TradeOps</h1>
           <p>
-            Sign in to access market data, trading, and upcoming portfolio tools. Use demo credentials
+            Sign in to access market data, trading, and simulated equity execution. Use demo credentials
             <strong> demo@example.com / demo</strong> to explore instantly.
           </p>
         </header>

@@ -21,6 +21,7 @@ from trading.domain.exceptions import (
     InstrumentNotFoundError,
     OrderValidationError,
 )
+from trading.domain.capabilities import DEMO_INSTRUMENTS, InstrumentCapability, quote_only
 from trading.domain.matching import MatchingEngine
 from trading.infrastructure.events import RedisExecutionPublisher
 from trading.infrastructure.market_data import RedisMarketDataGateway
@@ -71,6 +72,10 @@ def create_app(
     async def get_current_session(request: Request) -> AuthenticatedSession:
         return await session_resolver(request)
 
+    @app.get("/instruments", response_model=list[InstrumentCapability])
+    async def instruments() -> list[InstrumentCapability]:
+        return DEMO_INSTRUMENTS
+
     @app.post("/orders", response_model=OrderResponse, status_code=status.HTTP_201_CREATED)
     async def create_order_endpoint(
         request: OrderCreateRequest,
@@ -78,6 +83,8 @@ def create_app(
         data_gateway: MarketDataGateway = Depends(get_market_data_gateway),
         session: AuthenticatedSession = Depends(get_current_session),
     ) -> OrderResponse:
+        if quote_only(request.instrument_id):
+            raise HTTPException(status_code=422, detail="This instrument is quote-only; execution is not implemented.")
         try:
             order_book = await data_gateway.get_order_book(request.instrument_id)
             order = await service.submit(request.to_domain_request(session.user_id), order_book)
@@ -196,6 +203,10 @@ def create_default_app(settings: TradingSettings | None = None) -> FastAPI:
             await redis_client.aclose()
         logger.info("Trading agent shut down", extra={"event": "trading.app.shutdown"})
 
+    @app.get("/instruments", response_model=list[InstrumentCapability])
+    async def instruments() -> list[InstrumentCapability]:
+        return DEMO_INSTRUMENTS
+
     @app.post("/orders", response_model=OrderResponse, status_code=status.HTTP_201_CREATED)
     async def create_order_endpoint(
         http_request: Request,
@@ -214,6 +225,8 @@ def create_default_app(settings: TradingSettings | None = None) -> FastAPI:
         session = await session_store.get(SessionToken(token_value))
         if session is None:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+        if quote_only(request.instrument_id):
+            raise HTTPException(status_code=422, detail="This instrument is quote-only; execution is not implemented.")
         try:
             order_book = await data_gateway.get_order_book(request.instrument_id)
             order = await service.submit(request.to_domain_request(session.user_id), order_book)
