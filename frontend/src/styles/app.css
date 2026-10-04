@@ -319,6 +319,7 @@ tbody tr:last-child td {
 
 .field {
   display: grid;
+  min-width: 0;
   gap: 0.45rem;
 }
 
@@ -336,6 +337,8 @@ label {
 
 input,
 select {
+  min-width: 0;
+  width: 100%;
   font: inherit;
   border-radius: 14px;
   padding: 0.8rem 0.9rem;
