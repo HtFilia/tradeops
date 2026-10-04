@@ -15,6 +15,7 @@ import { logger } from "./lib/logging";
 import { usePolling } from "./hooks/usePolling";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { LoginView } from "./views/LoginView";
+import { appendReceipt } from "./lib/orderActivity";
 
 type StatusState = "idle" | "ok" | "error";
 
@@ -27,6 +28,8 @@ function Dashboard(): JSX.Element {
   const [tradingStatus, setTradingStatus] = useState<StatusState>("idle");
   const [instruments, setInstruments] = useState<InstrumentSnapshot[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [selectedInstrument, setSelectedInstrument] = useState("EQ-ACME");
+  const [receipts, setReceipts] = useState<OrderResponseBody[]>([]);
   const [feedback, setFeedback] = useState<{ message: string; tone: "success" | "error" | "idle" }>(
     {
       message: "",
@@ -80,6 +83,7 @@ function Dashboard(): JSX.Element {
     setFeedback({ message: "", tone: "idle" });
     try {
       const response: OrderResponseBody = await submitOrder(payload);
+      setReceipts(previous => appendReceipt(previous, response));
       setFeedback({
         message: `Order ${response.order_id} accepted (${response.status}).`,
         tone: "success"
@@ -130,7 +134,7 @@ function Dashboard(): JSX.Element {
         <div>
           <h1 className="header__title">Trading Board</h1>
           <p className="header__subtitle">
-            Welcome back. Monitor synthetic markets, submit orders, and preview upcoming portfolio and risk analytics.
+            Select a synthetic instrument, submit a simulated order, and inspect its fill receipt. No real money.
           </p>
         </div>
         <div className="header-actions">
@@ -150,14 +154,14 @@ function Dashboard(): JSX.Element {
             </button>
           </div>
           <p className="panel__subtitle">
-            Snapshots fetched from the market data agent. Live WebSocket streaming will replace polling once the
-            gateway is ready.
+            Synthetic quotes refresh every {MARKET_REFRESH_MS / 1000} seconds. Select an instrument to trade it.
           </p>
           <div className="status-line">
             <span>Market data service</span>
             <StatusBadge status={marketStatus} label={marketStatusLabel} />
           </div>
-          <InstrumentTable instruments={instruments} />
+          <InstrumentTable instruments={instruments} selectedInstrument={selectedInstrument}
+            onSelect={setSelectedInstrument} />
         </article>
 
         <article className="panel">
@@ -165,17 +169,38 @@ function Dashboard(): JSX.Element {
             <h2 className="panel__title">Quick trade</h2>
           </div>
           <p className="panel__subtitle">
-            Submit rapid market or limit orders against the trading agent. Balance and position management happens in
-            the backend using your authenticated session.
+            Market orders use synthetic liquidity. Limit orders fill only when the current quote crosses your limit;
+            an unfilled receipt is not a monitored working order. All funds and quotes are simulated;
+            the demo login is shared.
           </p>
           <div className="status-line">
             <span>Trading service</span>
             <StatusBadge status={tradingStatus} label={tradingStatusLabel} />
           </div>
-          <OrderForm onSubmit={handleOrderSubmit} submitting={submitting} feedback={feedback} />
+          <OrderForm onSubmit={handleOrderSubmit} submitting={submitting} feedback={feedback}
+            selectedInstrument={selectedInstrument} instruments={instruments.map(item => item.instrumentId)}
+            onInstrumentChange={setSelectedInstrument} />
         </article>
       </section>
 
+      <section className="panel" role="region" aria-label="Order activity">
+        <h2 className="panel__title">Order activity</h2>
+        <p className="panel__subtitle">Last ten submission receipts in this browser session. Refreshing or logging out
+          clears this view; persisted orders remain on the server. This is not a live order status feed.</p>
+        {receipts.length === 0 ? <p>No orders submitted in this browser session.</p> :
+          <div className="table-wrapper" role="region" aria-label="Order receipts" tabIndex={0}>
+            <table aria-label="Submission receipts">
+              <thead><tr><th>Instrument / side</th><th>Status at submission</th><th>Filled / requested</th>
+                <th>Average fill price</th><th>Order ID</th></tr></thead>
+              <tbody>{receipts.map(receipt => <tr key={receipt.order_id}>
+                <td>{receipt.instrument_id} / {receipt.side}</td><td>{receipt.status}</td>
+                <td>{receipt.filled_quantity} / {receipt.quantity}</td>
+                <td>{receipt.average_price == null ? "—" : receipt.average_price.toFixed(4)}</td>
+                <td>{receipt.order_id}</td>
+              </tr>)}</tbody>
+            </table>
+          </div>}
+      </section>
       <section className="module-grid">
         <ModuleCard
           title="Portfolio overview"
@@ -187,11 +212,6 @@ function Dashboard(): JSX.Element {
           description="Delta, DV01, and scenario tools will plug into this workspace in later milestones."
           badge="Planned"
         />
-        <ModuleCard
-          title="Order activity"
-          description="Executed trades, working orders, and OTC quote interactions will stream into this feed."
-          badge="Planned"
-        />
       </section>
     </div>
   );
@@ -200,7 +220,16 @@ function Dashboard(): JSX.Element {
 export default function App(): JSX.Element {
   return (
     <AuthProvider>
-      <Dashboard />
+      <SessionView />
     </AuthProvider>
   );
+}
+
+function SessionView(): JSX.Element {
+  const { user, status } = useAuth();
+  if (status === "loading") return <div className="app-shell">Loading session…</div>;
+  if (status !== "authenticated" || user === null) return <LoginView />;
+  // Unmount the dashboard on logout so receipts and pending responses cannot
+  // carry over to a later authenticated session.
+  return <Dashboard key={user.user_id} />;
 }

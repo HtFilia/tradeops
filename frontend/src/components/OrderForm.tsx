@@ -5,17 +5,20 @@ interface OrderFormProps {
   onSubmit: (payload: OrderPayload) => Promise<void>;
   submitting: boolean;
   feedback: { message: string; tone: "success" | "error" | "idle" };
+  selectedInstrument: string;
+  instruments: string[];
+  onInstrumentChange: (instrument: string) => void;
 }
 
 const DEFAULT_FORM: OrderPayload = {
-  user_id: "demo-user",
   instrument_id: "EQ-ACME",
   side: "BUY",
-  quantity: 100,
+  quantity: 1,
   order_type: "MARKET"
 };
 
-export function OrderForm({ onSubmit, submitting, feedback }: OrderFormProps) {
+export function OrderForm({ onSubmit, submitting, feedback, selectedInstrument,
+  instruments, onInstrumentChange }: OrderFormProps) {
   const [formState, setFormState] = useState<OrderPayload>(DEFAULT_FORM);
   const [limitPrice, setLimitPrice] = useState<string>("");
 
@@ -30,6 +33,7 @@ export function OrderForm({ onSubmit, submitting, feedback }: OrderFormProps) {
     event.preventDefault();
     const payload: OrderPayload = {
       ...formState,
+      instrument_id: selectedInstrument,
       quantity: Number(formState.quantity)
     };
 
@@ -59,26 +63,17 @@ export function OrderForm({ onSubmit, submitting, feedback }: OrderFormProps) {
   return (
     <form className="form-grid" onSubmit={handleSubmit}>
       <div className="field">
-        <label htmlFor="user-id">User ID</label>
-        <input
-          id="user-id"
-          name="user_id"
-          value={formState.user_id}
-          onChange={(event) => handleChange("user_id", event.target.value)}
-          required
-        />
-      </div>
-
-      <div className="field">
         <label htmlFor="instrument-id">Instrument</label>
-        <input
+        <select
           id="instrument-id"
           name="instrument_id"
-          placeholder="e.g. EQ-ACME"
-          value={formState.instrument_id}
-          onChange={(event) => handleChange("instrument_id", event.target.value)}
+          value={selectedInstrument}
+          onChange={(event) => onInstrumentChange(event.target.value)}
           required
-        />
+        >
+          {Array.from(new Set([selectedInstrument, ...instruments])).map(instrument =>
+            <option key={instrument} value={instrument}>{instrument}</option>)}
+        </select>
       </div>
 
       <div className="field field--inline">
@@ -115,6 +110,8 @@ export function OrderForm({ onSubmit, submitting, feedback }: OrderFormProps) {
             name="quantity"
             type="number"
             min={1}
+            step={1}
+            required
             value={formState.quantity}
             onChange={(event) => handleChange("quantity", Number(event.target.value))}
           />
@@ -128,7 +125,7 @@ export function OrderForm({ onSubmit, submitting, feedback }: OrderFormProps) {
             id="limit-price"
             name="limit_price"
             type="number"
-            min={0}
+            min={0.01}
             step="0.01"
             value={limitPrice}
             onChange={(event) => setLimitPrice(event.target.value)}

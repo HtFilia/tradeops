@@ -134,6 +134,7 @@ body {
 }
 
 .panel {
+  min-width: 0;
   background: var(--color-surface);
   border-radius: 20px;
   border: 1px solid var(--color-border);
@@ -306,6 +307,27 @@ tbody tr:last-child td {
 .button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.button:focus-visible,
+.table-wrapper:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+}
+
+.button[aria-pressed="true"] {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+
+.table-wrapper .button {
+  white-space: nowrap;
+  padding: 0.5rem 0.75rem;
+}
+
+select option {
+  color: var(--color-text);
+  background: var(--color-surface);
 }
 
 .button:hover:not(:disabled) {
