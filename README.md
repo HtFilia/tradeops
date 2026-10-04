@@ -268,3 +268,28 @@ schema before accepting logins. Preparation is idempotent: restarting the stack
 keeps existing orders. The full-stack CI test submits an authenticated order,
 repeats schema preparation and verifies that the order remains in PostgreSQL.
 The market-data tables are initialized separately by `docker/init/`.
+
+## Native homelab deployment
+
+The prepared native manifest supports `sudo homelab project deploy tradeops`
+alongside the existing Docker development workflow. A frozen `uv.lock` and
+explicit setuptools package discovery support production-only wheel installs.
+The service entry point is `.venv/bin/python deploy/homelab_run.py`: it starts
+the existing auth, market-data and trading workers, binds them to loopback and
+fails the whole service if any worker exits. Its `/health` response is ready
+only after all three workers respond and each synthetic instrument has a tick.
+Partial startup and termination are covered by lifecycle regression tests.
+
+Caddy serves the static frontend and forwards `/api/market/*`,
+`/api/trading/*` and `/auth/*` to their existing APIs. Build with
+`VITE_MARKET_DATA_BASE_URL=/api/market`,
+`VITE_TRADING_BASE_URL=/api/trading` and an empty `VITE_AUTH_BASE_URL` to keep
+browser requests on the public origin. PostgreSQL/Redis connection settings
+come from the service environment. Production uses Secure/HttpOnly cookies and
+matching `AUTH_SESSION_COOKIE_NAME`/`TRADING_SESSION_COOKIE_NAME` values.
+
+The public demo uses shared synthetic funds, not real accounts. Feed-only
+retention is handled by the host; it does not introduce transactional event
+publication, concurrent account safety or a replay guarantee. Public DNS and
+privileged setup require separate publication; this README does not claim
+that the prepared VPS demo is already live.
