@@ -1,4 +1,4 @@
--- Demo schema v1. Run from the existing hourly retention job only after upgrade.
+-- Demo schema v1. Run from the existing retention job only after upgrade.
 -- Ordinary/shared accounts are excluded even if an orphan guest row exists.
 SET lock_timeout = '2s';
 SET statement_timeout = '30s';
