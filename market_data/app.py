@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import math
 import os
 from dataclasses import asdict
 from datetime import datetime, timezone
@@ -42,14 +43,19 @@ class SystemClock:
         return datetime.now(timezone.utc)
 
 
+# The GBM kernel measures time in seconds. Convert the built-in demo's annual
+# drift/volatility using a 365-day calendar year, then advance by each feed's
+# configured cadence. Custom instrument configurations keep their seconds units.
+DEMO_SECONDS_PER_YEAR = 365 * 24 * 60 * 60
+
 DEFAULT_INSTRUMENTS: Sequence[InstrumentConfig] = (
     InstrumentConfig(
         instrument_id="EQ-ACME",
         instrument_type="EQUITY",
         start_price=100.0,
-        drift=0.05,
-        volatility=0.2,
-        step_seconds=1.0,
+        drift=0.05 / DEMO_SECONDS_PER_YEAR,
+        volatility=0.2 / math.sqrt(DEMO_SECONDS_PER_YEAR),
+        step_seconds=0.5,
         tick_size=0.01,
         update_interval_ms=500,
         seed=1,
@@ -86,9 +92,9 @@ DEFAULT_INSTRUMENTS: Sequence[InstrumentConfig] = (
         instrument_id="FUT-ES",
         instrument_type="FUTURE",
         start_price=4300.0,
-        drift=0.01,
-        volatility=0.18,
-        step_seconds=1.0,
+        drift=0.01 / DEMO_SECONDS_PER_YEAR,
+        volatility=0.18 / math.sqrt(DEMO_SECONDS_PER_YEAR),
+        step_seconds=0.25,
         tick_size=0.25,
         update_interval_ms=250,
         seed=3,
