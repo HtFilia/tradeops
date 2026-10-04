@@ -5,9 +5,17 @@ import {
   useEffect,
   useMemo,
   useState,
-  ReactNode
+  ReactNode,
 } from "react";
-import { CredentialsPayload, fetchSession, login, logout, register, SessionInfo } from "../lib/api";
+import {
+  startDemo,
+  CredentialsPayload,
+  fetchSession,
+  login,
+  logout,
+  register,
+  SessionInfo,
+} from "../lib/api";
 import { logger } from "../lib/logging";
 
 type AuthStatus = "loading" | "authenticated" | "unauthenticated";
@@ -19,11 +27,16 @@ interface AuthState {
   register: (credentials: CredentialsPayload) => Promise<void>;
   logout: () => Promise<void>;
   refreshSession: () => Promise<void>;
+  startDemo: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthState | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: ReactNode }): JSX.Element {
+export function AuthProvider({
+  children,
+}: {
+  children: ReactNode;
+}): JSX.Element {
   const [user, setUser] = useState<SessionInfo | null>(null);
   const [status, setStatus] = useState<AuthStatus>("loading");
 
@@ -35,7 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
       setStatus("authenticated");
     } catch (error) {
       logger.warn("ui.auth.session_missing", "No active session", {
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       });
       setUser(null);
       setStatus("unauthenticated");
@@ -52,11 +65,14 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
     setStatus("authenticated");
   }, []);
 
-  const handleRegister = useCallback(async (credentials: CredentialsPayload) => {
-    const session = await register(credentials);
-    setUser(session);
-    setStatus("authenticated");
-  }, []);
+  const handleRegister = useCallback(
+    async (credentials: CredentialsPayload) => {
+      const session = await register(credentials);
+      setUser(session);
+      setStatus("authenticated");
+    },
+    [],
+  );
 
   const handleLogout = useCallback(async () => {
     await logout();
@@ -77,9 +93,14 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
       logout: async () => {
         await handleLogout();
       },
-      refreshSession: loadSession
+      startDemo: async () => {
+        const session = await startDemo();
+        setUser(session);
+        setStatus("authenticated");
+      },
+      refreshSession: loadSession,
     }),
-    [user, status, handleLogin, handleRegister, handleLogout, loadSession]
+    [user, status, handleLogin, handleRegister, handleLogout, loadSession],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

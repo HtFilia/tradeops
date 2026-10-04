@@ -17,11 +17,12 @@ remain planned. This is an educational local stack, with no real-money execution
 - [Service boundaries and failure limits](docs/ARCHITECTURE.md).
 - [Order orchestration](trading/services/order_service.py) and
   [full-stack order persistence test](tests/e2e/test_full_stack.py).
-- Quick scenario: follow **Frontend UI** below, sign in to the seeded local demo
-  account, buy one unit of a configured equity, inspect the returned order and
-  persisted row. Use the fixture instruments returned by the running feed.
+- Primary demo: choose **Try the isolated demo**, inspect EQ-ACME depth, execute
+  one of four cases and reconcile fills/cash/holdings with persisted history.
+  See [snapshot demo contracts, fixtures and verification](docs/DEMO.md).
+- Existing registered/shared account login remains a secondary legacy workflow.
 
-**Limits:** concurrent submissions for one account may overwrite balance updates.
+**Legacy-route limits:** concurrent submissions for one account may overwrite balance updates.
 Execution publication occurs before the database transaction commits, so Redis
 and PostgreSQL can disagree after a failure. There is no transactional outbox or
 exactly-once guarantee. Do not use this demo to establish production consistency.
@@ -315,8 +316,9 @@ browser requests on the public origin. PostgreSQL/Redis connection settings
 come from the service environment. Production uses Secure/HttpOnly cookies and
 matching `AUTH_SESSION_COOKIE_NAME`/`TRADING_SESSION_COOKIE_NAME` values.
 
-The public demo uses shared synthetic funds, not real accounts. Feed-only
-retention is handled by the host; it does not introduce transactional event
-publication, concurrent account safety or a replay guarantee. Public DNS and
-privileged setup require separate publication; this README does not claim
-that the prepared VPS demo is already live.
+The guided demo uses guest-owned synthetic accounts, not real funds. Its new
+snapshot route has scoped PostgreSQL locking, durable accounting receipts and
+idempotent retries. The existing host retention job also removes only expired
+guest evidence older than 24 hours. These changes do not establish a general
+distributed event-delivery guarantee. See [demo limits and migration](docs/DEMO.md).
+Local verification does not prove the currently deployed version has these features.

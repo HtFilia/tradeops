@@ -7,7 +7,11 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background: radial-gradient(circle at top, rgba(74, 139, 255, 0.08) 0%, var(--color-bg) 55%);
+  background: radial-gradient(
+    circle at top,
+    rgba(74, 139, 255, 0.08) 0%,
+    var(--color-bg) 55%
+  );
   font-family: var(--font-base);
   color: var(--color-text);
 }
@@ -286,7 +290,10 @@ tbody tr:last-child td {
   font-weight: 600;
   font-size: 0.95rem;
   letter-spacing: 0.02em;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    opacity 0.2s ease;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -367,7 +374,9 @@ select {
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.06);
   color: var(--color-text);
-  transition: border 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    border 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 input:focus,
@@ -403,4 +412,225 @@ select:focus {
   table {
     min-width: unset;
   }
+}
+
+/* Guided snapshot journey, retaining the existing blue trading identity. */
+.app-shell.demo-workspace,
+.app-shell.demo-landing {
+  width: min(1120px, 100%);
+  min-width: 0;
+  display: grid;
+  gap: 1.2rem;
+}
+.demo-landing {
+  margin: auto;
+}
+.demo-landing h1 {
+  font-size: clamp(2rem, 5vw, 3.6rem);
+  line-height: 1.12;
+  max-width: 18ch;
+  margin: 0.4rem 0;
+}
+.demo-lead {
+  font-size: 1.2rem;
+  max-width: 58ch;
+  line-height: 1.6;
+}
+.demo-eyebrow {
+  color: var(--color-text-muted);
+  font-weight: 600;
+  letter-spacing: 0.07em;
+}
+.demo-path,
+.demo-links,
+.demo-cases,
+.demo-history,
+.demo-pages {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.demo-path span {
+  padding: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+}
+.demo-links a {
+  color: var(--color-accent);
+  padding: 0.35rem 0;
+}
+.demo-workspace h1 {
+  margin: 0.5rem 0;
+}
+.demo-workspace p,
+.demo-landing p {
+  line-height: 1.6;
+  margin: 0.6rem 0;
+}
+.demo-alert:empty {
+  display: none;
+}
+.demo-alert {
+  color: var(--color-danger);
+}
+.demo-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+.demo-metrics span {
+  display: block;
+  color: var(--color-text-muted);
+  font-size: 0.88rem;
+}
+.demo-metrics strong {
+  display: block;
+  font-size: 1.65rem;
+  margin-top: 0.45rem;
+  overflow-wrap: anywhere;
+}
+.demo-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+.demo-form label {
+  display: grid;
+  gap: 0.5rem;
+}
+.demo-form input,
+.demo-form select {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  padding: 0.8rem;
+  color: var(--color-text);
+  background: var(--color-surface-alt);
+  border-radius: 8px;
+  font: inherit;
+}
+fieldset {
+  padding: 0;
+  margin: 0;
+  border: 0;
+  min-width: 0;
+}
+.demo-preview {
+  background: var(--color-surface-alt);
+  padding: 1rem;
+  border-radius: 10px;
+}
+.demo-outcome {
+  text-transform: capitalize;
+  font-weight: 700;
+  font-size: 1.35rem;
+}
+.demo-id {
+  overflow-wrap: anywhere;
+  font-size: 0.88rem;
+  color: var(--color-text-muted);
+}
+.demo-filled {
+  background: var(--color-accent-soft);
+}
+.demo-workspace .panel {
+  min-width: 0;
+}
+.demo-workspace summary {
+  cursor: pointer;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.demo-workspace .table-wrapper {
+  max-width: 100%;
+  overflow: auto;
+}
+.demo-workspace table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.demo-workspace th,
+.demo-workspace td {
+  padding: 0.7rem;
+  text-align: left;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--color-border);
+}
+.demo-workspace caption {
+  text-align: left;
+  color: var(--color-text-muted);
+  padding: 0.5rem;
+}
+.demo-workspace .button[aria-pressed="true"] {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+.demo-workspace .button,
+.demo-landing .button {
+  min-height: 44px;
+  white-space: normal;
+}
+.demo-workspace .link-button {
+  margin-top: 1rem;
+  min-height: 44px;
+}
+.demo-workspace :focus-visible,
+.demo-landing :focus-visible {
+  outline: 3px solid var(--color-accent);
+  outline-offset: 3px;
+}
+.demo-workspace .demo-pages {
+  margin-top: 1rem;
+}
+@media (max-width: 700px) {
+  #root {
+    padding: 1.2rem 0.7rem 3rem;
+  }
+  .demo-metrics {
+    grid-template-columns: 1fr;
+    gap: 0.8rem;
+  }
+  .demo-metrics strong {
+    font-size: 1.45rem;
+  }
+  .demo-grid {
+    grid-template-columns: 1fr;
+  }
+  .demo-form {
+    grid-template-columns: 1fr;
+  }
+  .demo-workspace .panel {
+    padding: 1rem;
+  }
+  .demo-workspace .app-header {
+    align-items: start;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .demo-path {
+    flex-direction: column;
+  }
+  .demo-links {
+    font-size: 0.9rem;
+  }
+  .demo-cases .button {
+    flex: 1 1 45%;
+  }
+  .demo-history {
+    flex-direction: column;
+  }
+}
+.demo-workspace .panel > * {
+  min-width: 0;
+}
+.demo-workspace details {
+  max-width: 100%;
+}
+.demo-landing > .button,
+.demo-workspace form .button {
+  background: #285bc7;
+  color: #fff;
+  box-shadow: 0 8px 18px rgba(40, 91, 199, 0.18);
 }
