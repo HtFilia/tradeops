@@ -174,6 +174,24 @@ locally via Vite.
    by `AUTH_STARTING_BALANCE`. A demo account (`demo@example.com` / `demo`) is
    seeded automatically for quick testing.
 
+### Existing database volumes
+
+Auth startup prepares the shared users, accounts, positions, and orders tables
+with `CREATE TABLE IF NOT EXISTS`. To add order storage to an existing local
+stack, update the checkout and recreate the auth service:
+
+```bash
+docker compose up -d --build --force-recreate auth_service
+```
+
+Wait for `/auth/session` to respond before submitting orders. Existing users,
+balances, positions, and orders are retained; no volume reset is needed. The
+Compose stack uses the `public` schema for both auth and trading.
+
+The E2E suite also checks order persistence, repeated schema preparation, and
+transaction rollback against a temporary schema in Postgres. Set
+`E2E_POSTGRES_DSN` if the test database differs from the local Compose default.
+
 All UI interactions emit JSON logs that match `logging.schema.json`, keeping the
 schema consistent with backend services.
 

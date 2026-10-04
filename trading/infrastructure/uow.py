@@ -30,7 +30,7 @@ def _serialize_order(order: OrderRecord) -> dict[str, Any]:
 def _deserialize_order(record: asyncpg.Record) -> OrderRecord:
     return OrderRecord(
         order_id=record["order_id"],
-        user_id=record["user_id"],
+        user_id=str(record["user_id"]),
         instrument_id=record["instrument_id"],
         side=OrderSide(record["side"]),
         order_type=OrderType(record["order_type"]),
