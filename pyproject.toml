@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "market-data-agent"
 version = "0.1.0"
-description = "Synthetic market data agent for the trading simulator platform."
+description = "Local trading simulation: synthetic market data, authenticated orders, simulated fills and persistent state."
 authors = [{ name = "Trading Simulator Team" }]
 requires-python = ">=3.11"
 dependencies = [

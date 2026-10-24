@@ -7,6 +7,9 @@ data, order execution, authentication, persistent state, and a live React
 dashboard. It generates prices, order books, and dealer quotes, publishes them
 to Redis streams, and persists canonical state in Postgres.
 
+**[Open the live demo →](https://tradeops.lucaslebihan.dev/)** — choose **Try the isolated demo**;
+synthetic data, no real-money execution.
+
 ## Start reviewing here
 
 Implemented workflow: seeded synthetic feeds → Redis streams and PostgreSQL →
