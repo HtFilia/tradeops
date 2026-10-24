@@ -57,7 +57,7 @@ make smoke
 
 ### Docker stack
 
-Run the entire stack (Redis, Postgres, market data agent) with Docker Compose:
+Run the market data agent with Redis and Postgres:
 
 ```bash
 docker compose up --build market_data
@@ -81,8 +81,8 @@ export MARKET_DATA_POSTGRES_DSN=postgresql://postgres:postgres@localhost:5432/ma
 pytest -k smoke
 ```
 
-Stream names can be customised via the `MARKET_DATA_*_STREAM` environment
-variables.
+Stream names can be customised via the `REDIS_TICK_STREAM`,
+`REDIS_ORDER_BOOK_STREAM` and `REDIS_DEALER_QUOTE_STREAM` environment variables.
 
 ## Git hooks
 
@@ -105,7 +105,7 @@ Hook responsibilities:
   thorough explanation covering design choices, wrapped at 80 chars
   ```
 
-  `verb` must be one of: add/remove/refactor/change/revert/admin. The detail
+  `verb` must be one of: add/remove/refactor/change/revert/admin/fix. The detail
   section must start after a blank line, contain at least one non-empty line,
   and total at least 12 words. Every line (subject and body) must be ≤80 chars.
 * **post-commit** – prints a short summary of the most recent commit and
@@ -144,14 +144,14 @@ covering design trade-offs, and future considerations. Wrap each line at
 80 characters to retain readability in terminals and tooling.
 ```
 
-Allowed verbs: `add`, `remove`, `refactor`, `change`, `revert`, `admin`.
+Allowed verbs: `add`, `remove`, `refactor`, `change`, `revert`, `admin`, `fix`.
 
 Remember to keep explanations thorough—describe the behaviour change, the reason
 behind it, and notable testing decisions.
 
 ## Trading Agent
 
-An asynchronous trading agent now lives under `trading/`. It accepts authenticated
+An asynchronous trading agent lives under `trading/`. It accepts authenticated
 order requests, matches them against the latest simulated order book, persists
 cash/position state, and publishes executions onto the configured Redis stream.
 
@@ -215,8 +215,8 @@ empty auth bases:
 node tests/dashboard.browser.cjs # run from frontend/
 ```
 
-All UI interactions emit JSON logs that match `logging.schema.json`, keeping the
-schema consistent with backend services.
+The frontend logging helper (`src/lib/logging.ts`) writes JSON entries with the
+fields of `logging.schema.json`; the app shell, login view and auth context use it.
 
 The built-in equity/futures GBM feeds use annual synthetic drift/volatility
 (5%/20% and 1%/18%), converted to the simulator's seconds convention with a
@@ -232,10 +232,9 @@ educational processes, not calibrated market forecasts or guaranteed price bound
 
 All services emit JSON logs that follow `logging.schema.json`. The helper in
 `common/logging.py` wires Python's logging subsystem to this schema, ensuring
-messages stay human-readable while remaining easy to ingest elsewhere. Frontend
-code should serialize the same field set (`timestamp`, `level`, `component`,
-`event`, `message`, optional correlation identifiers, and a `context` object)
-when we instrument SPA interactions.
+messages stay human-readable while remaining easy to ingest elsewhere. The
+frontend helper serializes the same field set (`timestamp`, `level`, `component`,
+`event`, `message`, optional correlation identifiers, and a `context` object).
 
 ### Running the HTTP API
 
@@ -303,7 +302,8 @@ The market-data tables are initialized separately by `docker/init/`.
 ## Native homelab deployment
 
 The prepared native manifest supports `sudo homelab project deploy tradeops`
-alongside the existing Docker development workflow. A frozen `uv.lock` and
+alongside the existing Docker development workflow; `homelab` is the author's
+private server tooling and is not part of this repository. A frozen `uv.lock` and
 explicit setuptools package discovery support production-only wheel installs.
 The service entry point is `.venv/bin/python deploy/homelab_run.py`: it starts
 the existing auth, market-data and trading workers, binds them to loopback and
