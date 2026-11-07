@@ -160,7 +160,6 @@ function Dashboard(): JSX.Element {
           </p>
         </div>
         <div className="header-actions">
-          <a href="https://lucaslebihan.dev/en/">Portfolio</a>{" "}
           <a href="https://github.com/HtFilia/tradeops/blob/master/trading/domain/matching.py">
             Matching source
           </a>
@@ -292,7 +291,8 @@ export default function App(): JSX.Element {
 
 function SessionView(): JSX.Element {
   const { user, status } = useAuth();
-  const [showLogin, setShowLogin] = useState(false);
+  // Registered accounts sign in at #login; the landing keeps visitors on the guest demo.
+  const [showLogin, setShowLogin] = useState(() => window.location.hash === "#login");
   if (status === "loading")
     return <div className="app-shell">Loading session…</div>;
   if (status !== "authenticated" || user === null)
@@ -300,14 +300,17 @@ function SessionView(): JSX.Element {
       <main>
         <button
           className="button button--ghost"
-          onClick={() => setShowLogin(false)}
+          onClick={() => {
+            window.history.replaceState(null, "", window.location.pathname);
+            setShowLogin(false);
+          }}
         >
           Back to isolated demo
         </button>
         <LoginView />
       </main>
     ) : (
-      <DemoLanding onLogin={() => setShowLogin(true)} />
+      <DemoLanding />
     );
   if (user.principal_kind === "guest") return <DemoView key={user.user_id} />;
   // Unmount the dashboard on logout so receipts and pending responses cannot
