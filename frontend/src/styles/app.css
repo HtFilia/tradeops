@@ -7,11 +7,7 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background: radial-gradient(
-    circle at top,
-    rgba(74, 139, 255, 0.08) 0%,
-    var(--color-bg) 55%
-  );
+  background: var(--color-bg);
   font-family: var(--font-base);
   color: var(--color-text);
 }
@@ -238,14 +234,14 @@ body {
 
 .status-pill--ok {
   color: var(--color-success);
-  background: rgba(42, 203, 124, 0.15);
-  border-color: rgba(42, 203, 124, 0.35);
+  background: var(--color-accent-soft);
+  border-color: var(--color-success);
 }
 
 .status-pill--error {
   color: var(--color-danger);
-  background: rgba(255, 102, 102, 0.14);
-  border-color: rgba(255, 102, 102, 0.28);
+  background: rgba(160, 74, 59, 0.14);
+  border-color: var(--color-danger);
 }
 
 .table-wrapper {
@@ -300,9 +296,9 @@ tbody tr:last-child td {
 }
 
 .button--primary {
-  background: linear-gradient(135deg, var(--color-accent), #7ba2ff);
-  color: white;
-  box-shadow: 0 18px 32px rgba(74, 139, 255, 0.35);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  box-shadow: none;
 }
 
 .button--ghost {
@@ -630,7 +626,51 @@ fieldset {
 }
 .demo-landing > .button,
 .demo-workspace form .button {
-  background: #285bc7;
-  color: #fff;
-  box-shadow: 0 8px 18px rgba(40, 91, 199, 0.18);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  box-shadow: none;
+}
+.author-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 16px;
+  padding: 8px max(16px, calc((100% - 1180px) / 2));
+  background: #1c1914;
+  color: #f2e9d8;
+  font-family: var(--font-base);
+  font-size: 13px;
+  line-height: 1.5;
+  border-bottom: 1px solid #484035;
+}
+.author-bar a {
+  color: inherit;
+  text-decoration: none;
+}
+.author-bar a:hover,
+.author-bar a:focus-visible {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.author-bar .author {
+  font-weight: 600;
+}
+.author-bar .author span {
+  color: #c2b59f;
+  font-weight: 400;
+}
+.author-bar nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 14px;
+}
+.author-bar nav a:last-child {
+  color: #a9c69a;
+  font-weight: 600;
+}
+.demo-landing h1,
+.header__title {
+  font-family: "Source Serif 4", "Source Serif Pro", Georgia, "Times New Roman", serif;
+  font-weight: 600;
 }

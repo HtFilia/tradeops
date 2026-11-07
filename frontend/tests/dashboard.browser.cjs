@@ -31,8 +31,7 @@ const assert = require('node:assert/strict');
       return route.fulfill({status: 201, json: {...payload, order_id: 'test-order', filled_quantity: 2,
         status: 'PARTIALLY_FILLED', average_price: 5001}});
     });
-    await page.goto(process.env.TRADEOPS_UI_URL ?? 'http://127.0.0.1:5173');
-    await page.getByRole('button',{name:'Existing account login / registration'}).click();
+    await page.goto((process.env.TRADEOPS_UI_URL ?? 'http://127.0.0.1:5173') + '/#login');
     const login = async () => {
       await page.getByLabel('Email', {exact:true}).fill('demo@example.com');
       await page.getByLabel('Password', {exact:true}).fill('demo');

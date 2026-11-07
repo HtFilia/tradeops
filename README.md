@@ -1,6 +1,6 @@
 # TradeOps
 
-![Project overview — Lucas Lebihan, Quantitative Engineer](docs/assets/project-header.png)
+![TradeOps — Simulated market data and order execution. Personal project by Lucas Lebihan, Quantitative Engineer / Quant Developer](docs/assets/project-header.png)
 
 TradeOps is a local trading simulation with synthetic market
 data, order execution, authentication, persistent state, and a live React

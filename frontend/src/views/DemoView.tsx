@@ -31,11 +31,10 @@ function Evidence(): JSX.Element {
       <a href="https://github.com/HtFilia/tradeops/blob/master/tests/demo/test_owned_execution.py">
         Transaction tests
       </a>
-      <a href="https://lucaslebihan.dev">Portfolio</a>
     </nav>
   );
 }
-export function DemoLanding({ onLogin }: { onLogin: () => void }): JSX.Element {
+export function DemoLanding(): JSX.Element {
   const { startDemo } = useAuth();
   const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
@@ -83,9 +82,6 @@ export function DemoLanding({ onLogin }: { onLogin: () => void }): JSX.Element {
         </p>
       </section>
       <Evidence />
-      <button className="link-button" onClick={onLogin}>
-        Existing account login / registration
-      </button>
     </main>
   );
 }
